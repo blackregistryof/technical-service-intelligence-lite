@@ -99,7 +99,7 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 
 ## Project status
 
-**Current stage:** V0.1 Development Stage 3 — synthetic demo data.
+**Current stage:** V0.1 Development Stage 4 — fault-call and ATM history views.
 
 **Completed:**
 
@@ -109,13 +109,40 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - `.env.example` with required variable names; the production build runs without a database connection.
 - Shared-password authentication with a signed, HTTP-only session cookie and **Logi välja** (Stage 2).
 - Deterministic synthetic dataset with automated tests and an idempotent seed script (Stage 3). The seed has **not** yet been run against PostgreSQL.
+- **Rikketeated** (active fault calls, search, detail with technician visits) and **Seadmed** (ATM search, work-order history, factual summary) views, served from a **temporary synthetic data adapter** (Stage 4).
 
 **Pending:**
 
 - Railway PostgreSQL setup, database connectivity and migrations (not yet run or tested).
 - Running `npm run db:seed` against PostgreSQL.
-- Fault-call, device-history and basic analysis views.
+- PostgreSQL (Prisma) implementation of the data repository, replacing the synthetic adapter.
 - Railway deployment and testing.
+
+## Data access
+
+The views read data only through `getServiceRepository()` in `src/lib/dal.ts`, which verifies the session on the server first and returns a read-only `ServiceRepository` (`src/lib/data/repository.ts`). Factual rules (active fault calls, the 30-day period, latest work date, latest technician comment) live in `src/lib/domain/analysis.ts` and are shared by all implementations.
+
+### Temporary synthetic data adapter
+
+Until PostgreSQL is available, `src/lib/data/synthetic-repository.ts` serves the deterministic synthetic dataset from server memory.
+
+- It is **temporary** and must be **replaced by the PostgreSQL adapter, or explicitly disabled, before the production Railway deployment**.
+- It is selected with `DATA_SOURCE=synthetic`. In development it is the default; in production (`NODE_ENV=production`) `DATA_SOURCE` must be set explicitly, otherwise data pages fail closed with an error. The server logs a warning whenever the synthetic source is in use.
+- It is server-only and read-only. No dataset records are included in client JavaScript bundles, and there is no API that exposes the dataset in bulk.
+
+### Analysis rules
+
+- Reference date: **25.10.2026** (fixed; the current clock is never used).
+- “Last 30 days”: the 30 calendar days ending on the reference date in Estonian time, **26.09.2026 00:00 – 25.10.2026 23:59** (Europe/Tallinn). Timestamps are stored in UTC and displayed in Estonian time.
+- Fault calls are counted as registered work orders; technician visits are never counted as fault calls.
+- The latest registered work date considers all work orders (fault calls and maintenance) up to the reference date.
+- For `HOLD` calls, only the comment of the most recent technician visit is shown. If it is missing, the page says so; older comments are not substituted.
+
+### Known UI limitation
+
+Unknown fault-call or ATM URLs show the Estonian “not found” view, but the HTTP status is 200 (with a `noindex` robots tag) rather than 404, and the view is rendered by the browser's JavaScript.
+
+Reason: with Cache Components enabled, protected pages send a prerendered shell (layout, navigation, loading state) before the page's data is read, and the status code cannot change once the response has started. Moving the loading state and marking the detail routes as blocking (`export const instant = false`) was tested and did not change the status, because the shell is still sent first. The only documented alternative, an existence check in `proxy.ts`, would move data access out of the authenticated data-access layer and add a lookup to every request, so it was not adopted for V0.1. This affects only the HTTP status; access control and the visible not-found message are unaffected.
 
 ## Local development
 
@@ -130,7 +157,7 @@ Other commands:
 
 | Command | Purpose | Needs database |
 |---|---|---|
-| `npm test` | Synthetic dataset tests | No |
+| `npm test` | Dataset, analysis-rule and repository tests | No |
 | `npm run typecheck` / `npm run lint` | Static checks | No |
 | `npm run build` | Production build | No |
 | `npm run db:migrate` | Create/apply migrations (development) | Yes |
@@ -146,6 +173,7 @@ Configure local environment variables in `.env.local` (ignored by Git), using `.
   ```
 
 - `DATABASE_URL` — only needed once a database is available.
+- `DATA_SOURCE` — optional in development (defaults to `synthetic`); must be set explicitly for `npm start` / production. See [Temporary synthetic data adapter](#temporary-synthetic-data-adapter).
 
 Without `APP_ACCESS_PASSWORD` and `SESSION_SECRET` the login page shows a configuration error and all pages stay locked. Never commit `.env` files.
 

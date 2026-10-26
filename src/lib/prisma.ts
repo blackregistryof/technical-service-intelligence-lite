@@ -16,7 +16,8 @@ function createPrismaClient(): PrismaClient {
 
 // Created lazily on first use so that importing this module never requires a
 // database connection (e.g. during `next build`).
-// Application code should use getAuthorizedDb() from "@/lib/dal" instead.
+// Application code must not use this directly; data access goes through the
+// ServiceRepository returned by getServiceRepository() in "@/lib/dal".
 export function getPrisma(): PrismaClient {
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createPrismaClient();
