@@ -30,9 +30,60 @@ The first version will provide:
 
 ## Demonstration data
 
-V0.1 will use a small, deterministic synthetic dataset representing approximately 5–8 ATMs, 30–50 registered work orders and associated technician visits.
+V0.1 uses a small, deterministic synthetic dataset (fixed reference date **2026-10-25**, all timestamps UTC):
 
-No real customer, employee or confidential company data will be included.
+| Records | Count |
+|---|---|
+| ATMs (`ATM-0101` … `ATM-0107`) | 7 |
+| Work orders | 38 — 26 fault calls (5 `OPEN`, 4 `HOLD`, 17 `CLOSED`) and 12 maintenance orders |
+| Technician visits | 37 |
+| Code dictionary entries | 12 (7 fault codes, 5 resolution codes) |
+
+It includes `HOLD` fault calls with technician comments (and one whose visit has no comment), closed historical fault calls, maintenance orders (including one still open), fault calls with two and three technician visits, and a device with limited fault history.
+
+All identifiers, models, codes, descriptions and comments are fictional. No real customer, employee or company data is included.
+
+- `prisma/synthetic/dataset.ts` — pure data definition and validation; no database, clock or randomness.
+- `prisma/synthetic/dataset.test.ts` — automated dataset tests (`npm test`).
+- `prisma/seed.ts` — idempotent persistence (`npm run db:seed`), see [Seeding the database](#seeding-the-database).
+
+## Seeding the database
+
+### What the seed changes
+
+- Synthetic records are identified by IDs starting with `syn-` (and source system `TSI-SYNTH` for work orders). These are reserved for the synthetic dataset; imported data must not use them.
+- The seed **creates or updates only `syn-` records**, matched by ID, so it can be rerun safely without creating duplicates.
+- The seed **never deletes anything**. If a synthetic record is removed from the dataset in a later version, the seed lists it as obsolete and leaves it in place; remove it manually if required.
+- Before writing, the seed checks whether any ATM number, `TSI-SYNTH` work-order ID or dictionary code it needs already belongs to a non-synthetic record. If so, it **aborts without changes** and lists the conflicts.
+- All writes run in one transaction: either the whole dataset is written or nothing is.
+
+### When it runs
+
+Only when someone runs `npm run db:seed`. It is **not** part of `npm install`/`postinstall` (which only runs `prisma generate`), `npm run build`, `npm start`, or Prisma's own commands (no seed is registered in `prisma.config.ts`). Do **not** add it to Railway build, pre-deploy or start commands.
+
+### `tsx` is a development dependency
+
+The seed is TypeScript and runs through `tsx`, which is listed in `devDependencies`. It is therefore meant to be run from a development machine that has run a full `npm install`, not from the deployed Railway service, where development dependencies may be pruned.
+
+### Running it against Railway PostgreSQL (once available)
+
+1. In Railway, open the PostgreSQL service and copy its **public** connection URL (`DATABASE_PUBLIC_URL`). The internal URL only works inside Railway's private network.
+2. Put it in your local, Git-ignored `.env.local` as `DATABASE_URL=…`. Never commit it or paste it into chat or tickets.
+3. Apply the schema, then seed. (No migration files exist yet; the initial migration is created in the database stage before this step can run.)
+
+   ```bash
+   npm run db:migrate:deploy
+   ```
+
+   ```bash
+   npm run db:seed
+   ```
+
+   The seed prints the target host and database name (no credentials) before writing — check it is the intended database.
+4. Optionally run `npm run db:seed` a second time and confirm that the reported counts are unchanged (7 ATMs, 38 work orders, 37 technician visits, 12 codes).
+5. Remove or comment out `DATABASE_URL` in `.env.local` afterwards if you do not want local commands to target Railway.
+
+Alternatively, the Railway CLI (`railway run`) can inject service variables for a single command without storing them in a file. Note that a service's `DATABASE_URL` usually points to the private network address, which is not reachable from a local machine; use the public URL for local seeding.
 
 ## Future development — V0.2
 
@@ -48,7 +99,7 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 
 ## Project status
 
-**Current stage:** V0.1 Development Stage 1 — application foundation.
+**Current stage:** V0.1 Development Stage 3 — synthetic demo data.
 
 **Completed:**
 
@@ -57,22 +108,33 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - Prisma schema for `Atm`, `WorkOrder`, `TechnicianVisit` and `CodeDictionary`, prepared for PostgreSQL.
 - `.env.example` with required variable names; the production build runs without a database connection.
 - Shared-password authentication with a signed, HTTP-only session cookie and **Logi välja** (Stage 2).
+- Deterministic synthetic dataset with automated tests and an idempotent seed script (Stage 3). The seed has **not** yet been run against PostgreSQL.
 
 **Pending:**
 
 - Railway PostgreSQL setup, database connectivity and migrations (not yet run or tested).
-- Synthetic demo data seed.
+- Running `npm run db:seed` against PostgreSQL.
 - Fault-call, device-history and basic analysis views.
 - Railway deployment and testing.
 
 ## Local development
 
-Requires Node.js 20.19 or later. On Windows PowerShell, use `npm.cmd` if `npm` is blocked by the execution policy.
+Requires Node.js 22 or later. On Windows PowerShell, use `npm.cmd` if `npm` is blocked by the execution policy.
 
 ```bash
 npm install
 npm run dev
 ```
+
+Other commands:
+
+| Command | Purpose | Needs database |
+|---|---|---|
+| `npm test` | Synthetic dataset tests | No |
+| `npm run typecheck` / `npm run lint` | Static checks | No |
+| `npm run build` | Production build | No |
+| `npm run db:migrate` | Create/apply migrations (development) | Yes |
+| `npm run db:seed` | Load the synthetic dataset | Yes |
 
 Configure local environment variables in `.env.local` (ignored by Git), using `.env.example` as the template:
 
