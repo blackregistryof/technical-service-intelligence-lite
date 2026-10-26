@@ -2,77 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge, WorkTypeBadge } from "@/components/Badges";
+import { FactSummary } from "@/components/FactSummary";
 import { FaultCode } from "@/components/FaultCode";
 import { VisitList } from "@/components/VisitList";
 import { getServiceRepository } from "@/lib/dal";
-import type { AtmFactSummary } from "@/lib/domain/types";
-import {
-  formatDate,
-  formatDateTime,
-  formatIsoDay,
-  isoDateTime,
-  WORK_TYPE_LABELS,
-} from "@/lib/format";
+import { formatDateTime, isoDateTime } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Seadme ajalugu",
 };
-
-function FactSummary({ summary }: { summary: AtmFactSummary }) {
-  const latest = summary.latestWorkOrder;
-  return (
-    <section
-      aria-labelledby="kokkuvote-pealkiri"
-      className="rounded-lg border border-blue-200 bg-blue-50 p-4"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="kokkuvote-pealkiri" className="text-base font-semibold text-slate-900">
-          Faktiline kokkuvõte
-        </h2>
-        <p className="text-sm font-semibold text-blue-900">
-          Võrdluskuupäev: {formatIsoDay(summary.referenceDate)}
-        </p>
-      </div>
-      <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-md bg-white p-3">
-          <dt className="text-sm text-slate-600">
-            Registreeritud rikketeateid viimase {summary.period.days} päeva jooksul (
-            {formatDate(summary.period.start)}–{formatDate(summary.period.end)})
-          </dt>
-          <dd className="mt-1 text-2xl font-semibold text-slate-900">
-            {summary.faultCallsInPeriod}
-          </dd>
-        </div>
-        <div className="rounded-md bg-white p-3">
-          <dt className="text-sm text-slate-600">Viimane registreeritud töö</dt>
-          <dd className="mt-1 text-slate-900">
-            {latest ? (
-              <>
-                <span className="text-2xl font-semibold">
-                  <time dateTime={isoDateTime(latest.registeredAt)}>
-                    {formatDate(latest.registeredAt)}
-                  </time>
-                </span>
-                <span className="block text-sm text-slate-700">
-                  {WORK_TYPE_LABELS[latest.workType]}{" "}
-                  <a href={`#${latest.id}`} className="text-blue-800 underline-offset-2 hover:underline">
-                    {latest.externalId}
-                  </a>
-                </span>
-              </>
-            ) : (
-              <span className="text-sm text-slate-700">Registreeritud töid ei ole.</span>
-            )}
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-3 text-xs text-slate-600">
-        Loendatakse registreeritud rikketeateid (töökäske), mitte tehnikukülastusi. Arvud põhinevad
-        ainult salvestatud andmetel ega sisalda rikete põhjuste hinnangut.
-      </p>
-    </section>
-  );
-}
 
 export default async function AtmHistoryPage(props: PageProps<"/seadmed/[atmNumber]">) {
   const repository = await getServiceRepository();

@@ -62,19 +62,35 @@ export type LatestTechnicianComment =
 
 export type AnalysisPeriod = {
   days: number;
-  /** Inclusive start. */
+  /** IANA time zone in which calendar days are counted. */
+  timeZone: string;
+  /** First and last calendar day ("YYYY-MM-DD"), both inclusive. */
+  startDay: string;
+  endDay: string;
+  /** Inclusive start instant (00:00:00.000 local time on startDay). */
   start: Date;
-  /** Inclusive end. */
+  /** Inclusive end instant (23:59:59.999 local time on endDay). */
   end: Date;
+};
+
+/** Reference to an existing work-order record. */
+export type WorkOrderRef = {
+  id: string;
+  externalId: string;
+  workType: WorkType;
+  status: WorkOrderStatus;
+  registeredAt: Date;
 };
 
 export type AtmFactSummary = {
   referenceDate: string;
   period: AnalysisPeriod;
-  /** Registered fault-call work orders in the period (visits are not counted). */
+  /** Number of registered fault-call work orders in the period (visits are not counted). */
   faultCallsInPeriod: number;
+  /** The counted fault calls themselves, newest first. */
+  periodFaultCalls: WorkOrderRef[];
   /** Latest registered work order of any type up to the reference date. */
-  latestWorkOrder: { id: string; externalId: string; workType: WorkType; registeredAt: Date } | null;
+  latestWorkOrder: WorkOrderRef | null;
 };
 
 export type AtmHistory = {

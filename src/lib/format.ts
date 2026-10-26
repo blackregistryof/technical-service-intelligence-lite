@@ -36,6 +36,11 @@ export function formatIsoDay(isoDay: string): string {
   return `${day}.${month}.${year}`;
 }
 
+/** "1 rikketeade", "3 rikketeadet", "0 rikketeadet". */
+export function countFaultCalls(count: number): string {
+  return `${count} ${count === 1 ? "rikketeade" : "rikketeadet"}`;
+}
+
 export const STATUS_LABELS: Record<WorkOrderStatus, string> = {
   OPEN: "Avatud",
   HOLD: "Ootel",

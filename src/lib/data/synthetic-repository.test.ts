@@ -196,12 +196,80 @@ describe("getAtmHistory", () => {
     }
   });
 
+  it("lists exactly the counted fault calls per ATM, newest first", async () => {
+    const expected: Record<string, string[]> = {
+      "ATM-0101": ["WO-27602", "WO-27480", "WO-27015"],
+      "ATM-0102": ["WO-27590", "WO-27455", "WO-27210"],
+      "ATM-0103": ["WO-27520", "WO-27350"],
+      "ATM-0104": ["WO-27570", "WO-27100"],
+      "ATM-0105": ["WO-27495", "WO-27280"],
+      "ATM-0106": ["WO-27540", "WO-27410"],
+      "ATM-0107": ["WO-27050"],
+    };
+    for (const [atmNumber, ids] of Object.entries(expected)) {
+      const { summary, workOrders } = (await repository.getAtmHistory(atmNumber))!;
+      assert.deepEqual(summary.periodFaultCalls.map((w) => w.externalId), ids, atmNumber);
+      assert.equal(summary.faultCallsInPeriod, ids.length, atmNumber);
+      // Every summary reference points to an existing record of this ATM.
+      const historyIds = new Set(workOrders.map((w) => w.id));
+      for (const ref of [...summary.periodFaultCalls, summary.latestWorkOrder!]) {
+        assert.ok(historyIds.has(ref.id), `${atmNumber}: ${ref.id}`);
+      }
+    }
+  });
+
+  it("excludes maintenance and pre-period closed calls from the count", async () => {
+    // ATM-0103: WO-26990 (maintenance, 23.09) and WO-26420 (closed fault, 05.08) are outside.
+    const { summary } = (await repository.getAtmHistory("ATM-0103"))!;
+    const ids = summary.periodFaultCalls.map((w) => w.externalId);
+    assert.ok(!ids.includes("WO-26990"));
+    assert.ok(!ids.includes("WO-26420"));
+    // ATM-0104: WO-27380 is maintenance inside the period and is not counted.
+    const atm0104 = (await repository.getAtmHistory("ATM-0104"))!.summary;
+    assert.ok(!atm0104.periodFaultCalls.some((w) => w.externalId === "WO-27380"));
+  });
+
   it("counts a fault call with several visits only once", async () => {
     // ATM-0101: WO-27015 has three visits inside the period but is one fault call.
     const history = (await repository.getAtmHistory("ATM-0101"))!;
     const wo27015 = history.workOrders.find((w) => w.externalId === "WO-27015")!;
     assert.equal(wo27015.visits.length, 3);
+    assert.ok(wo27015.visits.every((v) => v.visitedAt >= new Date("2026-09-25T21:00:00Z")));
     assert.equal(history.summary.faultCallsInPeriod, 3);
+    assert.equal(
+      history.summary.periodFaultCalls.filter((w) => w.externalId === "WO-27015").length,
+      1,
+    );
+  });
+
+  it("summarizes a device without any history", async () => {
+    const custom = buildSyntheticDataset();
+    custom.atms.push({ id: "syn-atm-test-empty", atmNumber: "ATM-9001", model: "Testmudel" });
+    const history = (await createSyntheticRepository(custom).getAtmHistory("ATM-9001"))!;
+    assert.deepEqual(history.workOrders, []);
+    assert.equal(history.summary.faultCallsInPeriod, 0);
+    assert.deepEqual(history.summary.periodFaultCalls, []);
+    assert.equal(history.summary.latestWorkOrder, null);
+  });
+
+  it("summarizes a device with maintenance only", async () => {
+    const custom = buildSyntheticDataset();
+    custom.atms.push({ id: "syn-atm-test-maint", atmNumber: "ATM-9002", model: "Testmudel" });
+    custom.workOrders.push({
+      id: "syn-wo-test-maint",
+      atmId: "syn-atm-test-maint",
+      externalId: "WO-90001",
+      sourceSystem: "TSI-SYNTH",
+      workType: "MAINTENANCE",
+      status: "CLOSED",
+      registeredAt: new Date("2026-10-12T07:00:00Z"),
+      faultCode: null,
+      originalDescription: "Plaaniline hooldus.",
+    });
+    const { summary } = (await createSyntheticRepository(custom).getAtmHistory("ATM-9002"))!;
+    assert.equal(summary.faultCallsInPeriod, 0);
+    assert.equal(summary.latestWorkOrder?.externalId, "WO-90001");
+    assert.equal(summary.latestWorkOrder?.workType, "MAINTENANCE");
   });
 
   it("totals 15 fault calls in the period across all ATMs", async () => {

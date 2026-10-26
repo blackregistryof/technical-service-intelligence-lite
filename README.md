@@ -99,7 +99,7 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 
 ## Project status
 
-**Current stage:** V0.1 Development Stage 4 — fault-call and ATM history views.
+**Current stage:** V0.1 Development Stage 5 — basic factual analysis.
 
 **Completed:**
 
@@ -110,6 +110,7 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - Shared-password authentication with a signed, HTTP-only session cookie and **Logi välja** (Stage 2).
 - Deterministic synthetic dataset with automated tests and an idempotent seed script (Stage 3). The seed has **not** yet been run against PostgreSQL.
 - **Rikketeated** (active fault calls, search, detail with technician visits) and **Seadmed** (ATM search, work-order history, factual summary) views, served from a **temporary synthetic data adapter** (Stage 4).
+- Basic factual analysis on the device page: fixed reference date, exact 30-day period, linked list of counted fault calls, latest registered work, and a synthetic-data / not-AI label (Stage 5).
 
 **Pending:**
 
@@ -132,10 +133,15 @@ Until PostgreSQL is available, `src/lib/data/synthetic-repository.ts` serves the
 
 ### Analysis rules
 
-- Reference date: **25.10.2026** (fixed; the current clock is never used).
-- “Last 30 days”: the 30 calendar days ending on the reference date in Estonian time, **26.09.2026 00:00 – 25.10.2026 23:59** (Europe/Tallinn). Timestamps are stored in UTC and displayed in Estonian time.
-- Fault calls are counted as registered work orders; technician visits are never counted as fault calls.
-- The latest registered work date considers all work orders (fault calls and maintenance) up to the reference date.
+All rules are implemented as pure functions in `src/lib/domain/analysis.ts` and are independent of the data source.
+
+- Reference date: **25.10.2026** (fixed; the current clock is never used). It is shown in the header of every protected page and in the device summary.
+- Analysis period: the 30 calendar days ending on, and including, the reference date in Estonian time: **26.09.2026 00:00 – 25.10.2026 23:59:59.999** (Europe/Tallinn). The period is derived from the reference date (`periodEndingOn`), including the daylight-saving change on 25.10.2026 (that day has 25 hours). Timestamps are stored in UTC and displayed in Estonian time.
+- Counted: `FAULT_CALL` work orders registered within the period, regardless of status (`OPEN`, `HOLD` or `CLOSED`). Not counted: maintenance orders and technician visits; a fault call with several visits counts once, and work orders are de-duplicated by ID.
+- The counted fault calls are listed with links to their existing detail pages, so every number can be traced to its records.
+- Latest registered work: the most recent work order of any type (fault call or maintenance) registered up to the end of the reference date, shown with date, time, type, status and a link to the record (fault-call page, or the history entry for maintenance).
+- Zero and missing cases are stated in words (“Analüüsiperioodil ei registreeritud … ühtegi rikketeadet”, “… ei ole registreeritud ühtegi tööd”).
+- The summary is labelled as synthetic demonstration data and a rule-based count, not an AI diagnosis or root-cause assessment.
 - For `HOLD` calls, only the comment of the most recent technician visit is shown. If it is missing, the page says so; older comments are not substituted.
 
 ### Known UI limitation
@@ -157,7 +163,7 @@ Other commands:
 
 | Command | Purpose | Needs database |
 |---|---|---|
-| `npm test` | Dataset, analysis-rule and repository tests | No |
+| `npm test` | Dataset, analysis-rule, formatting and repository tests | No |
 | `npm run typecheck` / `npm run lint` | Static checks | No |
 | `npm run build` | Production build | No |
 | `npm run db:migrate` | Create/apply migrations (development) | Yes |
