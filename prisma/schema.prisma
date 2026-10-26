@@ -1,0 +1,87 @@
+// TSI Lite V0.1 domain model.
+// General domain entities that can later be mapped from anonymized source-system
+// data. Source-system import mapping lives outside this schema.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// The connection URL is supplied by prisma.config.ts (DATABASE_URL).
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkType {
+  FAULT_CALL
+  MAINTENANCE
+}
+
+enum WorkOrderStatus {
+  OPEN
+  HOLD
+  CLOSED
+}
+
+model Atm {
+  id         String      @id @default(cuid())
+  atmNumber  String      @unique
+  model      String
+  workOrders WorkOrder[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("atms")
+}
+
+model WorkOrder {
+  id                  String            @id @default(cuid())
+  atmId               String
+  atm                 Atm               @relation(fields: [atmId], references: [id], onDelete: Restrict)
+  externalId          String
+  sourceSystem        String
+  workType            WorkType
+  status              WorkOrderStatus
+  registeredAt        DateTime
+  // Only fault calls carry a fault code; maintenance orders leave it empty.
+  faultCode           String?
+  // Preserved verbatim from the source system.
+  originalDescription String
+  visits              TechnicianVisit[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([sourceSystem, externalId])
+  @@index([status, registeredAt])
+  @@index([atmId, registeredAt])
+  @@index([workType, registeredAt])
+  @@map("work_orders")
+}
+
+model TechnicianVisit {
+  id              String    @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  visitedAt       DateTime
+  actions         String
+  // Preserved verbatim; may be missing in the source system.
+  originalComment String?
+  resolutionCode  String?
+  outcome         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([workOrderId, visitedAt])
+  @@map("technician_visits")
+}
+
+model CodeDictionary {
+  id          String @id @default(cuid())
+  // e.g. FAULT or RESOLUTION
+  codeType    String
+  code        String
+  description String
+
+  @@unique([codeType, code])
+  @@map("code_dictionary")
+}

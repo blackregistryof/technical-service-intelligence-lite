@@ -48,11 +48,33 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 
 ## Project status
 
-**Current stage:** Development environment and project documentation prepared.
+**Current stage:** V0.1 Development Stage 1 — application foundation.
 
-**Completed:** Claude Desktop and Claude Code setup, Git and Node.js checks, GitHub repository, and `CLAUDE.md`.
+**Completed:**
 
-**Pending:** Railway PostgreSQL setup, application implementation, deployment and testing.
+- Development environment, GitHub repository and project documentation (`CLAUDE.md`).
+- Next.js (App Router), TypeScript and Tailwind CSS application shell in Estonian, with **Rikketeated** and **Seadmed** placeholder pages.
+- Prisma schema for `Atm`, `WorkOrder`, `TechnicianVisit` and `CodeDictionary`, prepared for PostgreSQL.
+- `.env.example` with required variable names; the production build runs without a database connection.
+
+**Pending:**
+
+- Railway PostgreSQL setup, database connectivity and migrations (not yet run or tested).
+- Synthetic demo data seed.
+- Shared-password authentication.
+- Fault-call, device-history and basic analysis views.
+- Railway deployment and testing.
+
+## Local development
+
+Requires Node.js 20.19 or later. On Windows PowerShell, use `npm.cmd` if `npm` is blocked by the execution policy.
+
+```bash
+npm install
+npm run dev
+```
+
+Copy `.env.example` to `.env` and fill in values when a database is available. Never commit `.env` files.
 
 ## Repository
 

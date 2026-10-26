@@ -43,9 +43,9 @@ Provide shared-password access with server-side validation and a secure, HTTP-on
 
 Protect application pages and server-side data access. Include a logout action.
 
-### Rikkekutsed
+### Rikketeated
 
-This is the default page after login.
+This is the default page after login. The Estonian navigation label is "Rikketeated" (route `/rikketeated`); internal identifiers stay in English (e.g. `WorkOrder`, `FAULT_CALL`).
 
 - Show only fault work orders with status `Open` or `Hold`.
 - Sort by registration timestamp, newest first.
