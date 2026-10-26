@@ -56,12 +56,12 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - Next.js (App Router), TypeScript and Tailwind CSS application shell in Estonian, with **Rikketeated** and **Seadmed** placeholder pages.
 - Prisma schema for `Atm`, `WorkOrder`, `TechnicianVisit` and `CodeDictionary`, prepared for PostgreSQL.
 - `.env.example` with required variable names; the production build runs without a database connection.
+- Shared-password authentication with a signed, HTTP-only session cookie and **Logi välja** (Stage 2).
 
 **Pending:**
 
 - Railway PostgreSQL setup, database connectivity and migrations (not yet run or tested).
 - Synthetic demo data seed.
-- Shared-password authentication.
 - Fault-call, device-history and basic analysis views.
 - Railway deployment and testing.
 
@@ -74,7 +74,18 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env` and fill in values when a database is available. Never commit `.env` files.
+Configure local environment variables in `.env.local` (ignored by Git), using `.env.example` as the template:
+
+- `APP_ACCESS_PASSWORD` — shared login password of your choice.
+- `SESSION_SECRET` — random string of at least 32 characters, used to sign session cookies. Generate one with:
+
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+  ```
+
+- `DATABASE_URL` — only needed once a database is available.
+
+Without `APP_ACCESS_PASSWORD` and `SESSION_SECRET` the login page shows a configuration error and all pages stay locked. Never commit `.env` files.
 
 ## Repository
 
@@ -87,3 +98,28 @@ https://github.com/blackregistryof/technical-service-intelligence-lite
 - No live AI diagnosis or automatic dispatching.
 - No modification of operational work orders.
 - Application functionality remains under development.
+
+## Authentication: known limitations
+
+Access uses one shared password (`APP_ACCESS_PASSWORD`) and a stateless session cookie signed with `SESSION_SECRET` (HMAC-SHA256, `HttpOnly`, `SameSite=Lax`, `Secure` with the `__Host-` prefix in production, 8-hour lifetime). There are no individual user accounts, so sessions cannot be attributed to a person. Changing `APP_ACCESS_PASSWORD` or `SESSION_SECRET` signs out every session.
+
+### In-memory logout blocklist and login rate limiter
+
+Without a database, both are kept in the memory of the running Node.js process (`src/lib/auth/session.ts`, `src/lib/auth/rate-limit.ts`):
+
+- **Lost on restart or redeploy.** After a restart, a cookie that was logged out but copied beforehand becomes valid again until its 8-hour expiry, and failed-attempt counters reset to zero.
+- **Not shared between instances.** If the Railway service is scaled to more than one replica, a logout on one instance is unknown to the others, and the attempt limit applies per instance (an attacker gets 5 attempts per window *per replica*).
+- **Railway guidance until this is replaced:** run a **single replica**; rotate `SESSION_SECRET` to force-invalidate all sessions if a cookie may have leaked.
+- **Planned fix:** once PostgreSQL is available, move the session blocklist (or server-side session records) and failed-attempt counters into the database.
+
+The logout action always deletes the cookie in the browser; the limitations above concern only a cookie that was copied before logout.
+
+### Trusting `X-Forwarded-For`
+
+The rate limiter identifies clients by the first address in the `X-Forwarded-For` header (falling back to `X-Real-IP`). This header is **not verified**: any client can send its own value.
+
+- A client can **bypass the attempt limit** by sending a different `X-Forwarded-For` value with each request. (Memory use is capped at 10,000 tracked addresses.)
+- A client can **lock out another address** for 15 minutes by sending that address with 5 wrong passwords.
+- If no header is present (e.g. direct local access), all clients share one counter, so 5 failures lock everyone out for 15 minutes.
+
+Before relying on the limiter on Railway, verify how Railway's edge proxy sets these headers (whether it overwrites or appends to a client-supplied `X-Forwarded-For`) and derive the client address only from the entry added by the trusted proxy. The limiter slows down password guessing; it is not a substitute for a long, random `APP_ACCESS_PASSWORD`.

@@ -27,6 +27,7 @@ The deployed application must run on Railway and use Railway PostgreSQL.
 
 - Read database credentials from `DATABASE_URL`.
 - Read the shared application password from `APP_ACCESS_PASSWORD`.
+- Read the session-cookie signing secret from `SESSION_SECRET` (at least 32 characters).
 - Never hard-code or commit passwords, tokens, or database URLs.
 - Provide `.env.example` containing variable names but no secret values.
 - Ensure `.env`, `.env.local`, and other secret-bearing files are ignored by Git.

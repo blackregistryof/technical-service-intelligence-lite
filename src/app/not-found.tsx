@@ -2,7 +2,10 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <section className="space-y-3">
+    <main
+      id="sisu"
+      className="mx-auto w-full max-w-6xl flex-1 space-y-3 px-4 py-6 sm:px-6 lg:px-8"
+    >
       <h1 className="text-2xl font-semibold text-slate-900">Lehte ei leitud</h1>
       <p className="text-sm text-slate-600">
         Otsitud lehte ei ole olemas või see on teisaldatud.
@@ -13,6 +16,6 @@ export default function NotFound() {
       >
         Tagasi rikketeadete juurde
       </Link>
-    </section>
+    </main>
   );
 }

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { PlaceholderNotice } from "@/components/PlaceholderNotice";
+import { requireSession } from "@/lib/auth/server";
 
 export const metadata: Metadata = {
   title: "Seadmed",
 };
 
-export default function SeadmedPage() {
+export default async function SeadmedPage() {
+  await requireSession();
+
   return (
     <section aria-labelledby="seadmed-pealkiri" className="space-y-4">
       <header className="space-y-1">

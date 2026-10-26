@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { PlaceholderNotice } from "@/components/PlaceholderNotice";
+import { requireSession } from "@/lib/auth/server";
 
 export const metadata: Metadata = {
   title: "Rikketeated",
 };
 
-export default function RikketeatedPage() {
+export default async function RikketeatedPage() {
+  await requireSession();
+
   return (
     <section aria-labelledby="rikketeated-pealkiri" className="space-y-4">
       <header className="space-y-1">
