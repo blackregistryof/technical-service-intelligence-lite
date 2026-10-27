@@ -16,7 +16,10 @@ export interface ServiceRepository {
   listActiveFaultCalls(query?: string | null): Promise<FaultCallListItem[]>;
   /** Any work order by its stable ID, with ATM and visits; null if unknown. */
   getWorkOrder(id: string): Promise<WorkOrder | null>;
-  /** ATMs matching the ATM number query, ordered by ATM number. */
+  /**
+   * ATMs matching the ATM number query, ordered by ATM number, with their
+   * active fault calls per status and their 30-day fault-call count.
+   */
   searchAtms(query?: string | null): Promise<AtmListItem[]>;
   /** Full work-order history and factual summary for one ATM; null if unknown. */
   getAtmHistory(atmNumber: string): Promise<AtmHistory | null>;

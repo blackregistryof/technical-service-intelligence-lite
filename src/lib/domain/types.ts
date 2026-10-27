@@ -56,6 +56,10 @@ export type FaultCallListItem = {
 
 export type AtmListItem = AtmSummary & {
   activeFaultCallCount: number;
+  /** OPEN and HOLD fault calls (maintenance orders are never counted). */
+  activeByStatus: { OPEN: number; HOLD: number };
+  /** Registered fault calls in the fixed 30-day analysis period. */
+  faultCallsInPeriod: number;
 };
 
 /** The latest technician comment for a work order, without filling in gaps. */

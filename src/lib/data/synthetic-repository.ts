@@ -15,6 +15,7 @@ import {
   normalizeQuery,
   summarizeAtm,
 } from "../domain/analysis";
+import { countActiveFaultCalls } from "../domain/filters";
 import type {
   AtmSummary,
   CodeRef,
@@ -99,14 +100,17 @@ export function createSyntheticRepository(
       return dataset.atms
         .filter((a) => matchesQuery([a.atmNumber], q))
         .sort((a, b) => a.atmNumber.localeCompare(b.atmNumber))
-        .map((a) => ({
-          id: a.id,
-          atmNumber: a.atmNumber,
-          model: a.model,
-          activeFaultCallCount: dataset.workOrders.filter(
-            (w) => w.atmId === a.id && isActiveFaultCall(w),
-          ).length,
-        }));
+        .map((a) => {
+          const atmWorkOrders = dataset.workOrders.filter((w) => w.atmId === a.id);
+          return {
+            id: a.id,
+            atmNumber: a.atmNumber,
+            model: a.model,
+            activeFaultCallCount: atmWorkOrders.filter(isActiveFaultCall).length,
+            activeByStatus: countActiveFaultCalls(atmWorkOrders),
+            faultCallsInPeriod: summarizeAtm(atmWorkOrders).faultCallsInPeriod,
+          };
+        });
     },
 
     async getAtmHistory(atmNumber) {

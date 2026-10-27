@@ -17,7 +17,7 @@ export function CodeChip({
   if (!code) return <MissingValue>{missingLabel}</MissingValue>;
   return (
     <span className="inline-flex min-w-0 items-baseline gap-1.5">
-      <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs text-slate-800">
+      <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs whitespace-nowrap text-slate-800">
         {code.code}
       </code>
       {showDescription && code.description ? (

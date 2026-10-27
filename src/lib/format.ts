@@ -37,6 +37,30 @@ export function formatIsoDay(isoDay: string): string {
   return `${day}.${month}.${year}`;
 }
 
+/** "25.10" in Estonian time (timeline date column). */
+export function formatDayMonth(date: Date): string {
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    dateTimeFormat.formatToParts(date).find((p) => p.type === type)?.value ?? "";
+  return `${part("day")}.${part("month")}`;
+}
+
+/** "09:35" in Estonian time. */
+export function formatTime(date: Date): string {
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    dateTimeFormat.formatToParts(date).find((p) => p.type === type)?.value ?? "";
+  return `${part("hour")}:${part("minute")}`;
+}
+
+/** "1 töökäsk", "6 töökäsku". Work orders, not visits. */
+export function countWorkOrders(count: number): string {
+  return `${count} ${count === 1 ? "töökäsk" : "töökäsku"}`;
+}
+
+/** "1 tehnikukülastus", "7 tehnikukülastust". */
+export function countVisits(count: number): string {
+  return `${count} ${count === 1 ? "tehnikukülastus" : "tehnikukülastust"}`;
+}
+
 /** "1 rikketeade", "3 rikketeadet", "0 rikketeadet". */
 export function countFaultCalls(count: number): string {
   return `${count} ${count === 1 ? "rikketeade" : "rikketeadet"}`;

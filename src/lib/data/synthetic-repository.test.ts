@@ -164,6 +164,32 @@ describe("searchAtms", () => {
     assert.deepEqual(await repository.searchAtms("ATM-9999"), []);
   });
 
+  it("returns exact active-status and 30-day counts per ATM", async () => {
+    const rows = Object.fromEntries(
+      (await repository.searchAtms()).map((a) => [
+        a.atmNumber,
+        [a.activeByStatus.OPEN, a.activeByStatus.HOLD, a.faultCallsInPeriod],
+      ]),
+    );
+    assert.deepEqual(rows, {
+      "ATM-0101": [1, 1, 3],
+      "ATM-0102": [1, 1, 3],
+      "ATM-0103": [0, 1, 2],
+      "ATM-0104": [1, 0, 2],
+      "ATM-0105": [0, 1, 2],
+      "ATM-0106": [2, 0, 2],
+      "ATM-0107": [0, 0, 1],
+    });
+  });
+
+  it("agrees with the device summary for every ATM", async () => {
+    for (const atm of await repository.searchAtms()) {
+      const { summary } = (await repository.getAtmHistory(atm.atmNumber))!;
+      assert.equal(atm.faultCallsInPeriod, summary.faultCallsInPeriod, atm.atmNumber);
+      assert.equal(atm.activeByStatus.OPEN + atm.activeByStatus.HOLD, atm.activeFaultCallCount);
+    }
+  });
+
   it("counts active fault calls per ATM, excluding maintenance", async () => {
     const counts = Object.fromEntries(
       (await repository.searchAtms()).map((a) => [a.atmNumber, a.activeFaultCallCount]),

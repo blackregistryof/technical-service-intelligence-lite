@@ -4,7 +4,11 @@ import {
   COMPLETENESS_LABELS,
   COMPLETENESS_STATE_LABELS,
   countFaultCalls,
+  countVisits,
+  countWorkOrders,
   describeFaultCallResult,
+  formatDayMonth,
+  formatTime,
   formatDate,
   formatDateTime,
   formatIsoDay,
@@ -52,6 +56,22 @@ describe("completeness labels", () => {
       missing: "puudub",
       notApplicable: "ei kohaldu",
     });
+  });
+});
+
+describe("timeline date parts and counts", () => {
+  it("formats day.month and time in Estonian time", () => {
+    assert.equal(formatDayMonth(new Date("2026-10-25T07:35:00Z")), "25.10");
+    assert.equal(formatTime(new Date("2026-10-25T07:35:00Z")), "09:35");
+    assert.equal(formatDayMonth(new Date("2026-09-30T22:30:00Z")), "01.10");
+    assert.equal(formatTime(new Date("2026-09-30T22:30:00Z")), "01:30");
+  });
+
+  it("uses Estonian singular and partitive forms", () => {
+    assert.equal(countWorkOrders(1), "1 töökäsk");
+    assert.equal(countWorkOrders(6), "6 töökäsku");
+    assert.equal(countVisits(1), "1 tehnikukülastus");
+    assert.equal(countVisits(7), "7 tehnikukülastust");
   });
 });
 

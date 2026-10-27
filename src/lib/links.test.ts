@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { faultCallDetailHref, faultCallListHref, withListParams } from "./links";
+import { deviceHref, faultCallDetailHref, faultCallListHref, withListParams } from "./links";
 
 describe("faultCallListHref", () => {
   it("returns the plain list URL without parameters", () => {
@@ -33,6 +33,19 @@ describe("faultCallDetailHref", () => {
 
   it("encodes the ID path segment", () => {
     assert.equal(faultCallDetailHref("a/b c"), "/rikketeated/a%2Fb%20c");
+  });
+});
+
+describe("deviceHref", () => {
+  it("builds list and device URLs with search, work-type filter and hash", () => {
+    assert.equal(deviceHref(null), "/seadmed");
+    assert.equal(deviceHref(null, { query: "0101" }), "/seadmed?q=0101");
+    assert.equal(deviceHref("ATM-0101"), "/seadmed/ATM-0101");
+    assert.equal(
+      deviceHref("ATM-0101", { query: " 01 ", workType: "MAINTENANCE" }),
+      "/seadmed/ATM-0101?q=01&liik=MAINTENANCE",
+    );
+    assert.equal(deviceHref("ATM-0105", {}, "syn-wo-wo-27610"), "/seadmed/ATM-0105#syn-wo-wo-27610");
   });
 });
 

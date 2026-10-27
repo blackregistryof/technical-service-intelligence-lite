@@ -8,14 +8,20 @@ import {
   isoDateTime,
   WORK_TYPE_LABELS,
 } from "@/lib/format";
+import { deviceHref } from "@/lib/links";
 
 const linkClass =
   "text-blue-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
-/** Links to the record's own page for fault calls, otherwise to its entry in the history below. */
-function WorkOrderLink({ workOrder }: { workOrder: WorkOrderRef }) {
+/**
+ * Links to the record's own page for fault calls, otherwise to its entry in
+ * the unfiltered device history (so it also works while a filter hides it).
+ */
+function WorkOrderLink({ workOrder, atmNumber }: { workOrder: WorkOrderRef; atmNumber: string }) {
   const href =
-    workOrder.workType === "FAULT_CALL" ? `/rikketeated/${workOrder.id}` : `#${workOrder.id}`;
+    workOrder.workType === "FAULT_CALL"
+      ? `/rikketeated/${workOrder.id}`
+      : deviceHref(atmNumber, {}, workOrder.id);
   return (
     <Link href={href} className={`font-medium ${linkClass}`}>
       {workOrder.externalId}
@@ -27,14 +33,20 @@ function WorkOrderLink({ workOrder }: { workOrder: WorkOrderRef }) {
  * Factual, rule-based summary of one ATM's records. Pure presentation of the
  * domain summary; all values are calculated in src/lib/domain/analysis.ts.
  */
-export function FactSummary({ summary }: { summary: AtmFactSummary }) {
+export function FactSummary({
+  summary,
+  atmNumber,
+}: {
+  summary: AtmFactSummary;
+  atmNumber: string;
+}) {
   const { period, periodFaultCalls, latestWorkOrder: latest } = summary;
   const periodText = `${formatIsoDay(period.startDay)} 00:00 – ${formatIsoDay(period.endDay)} 23:59`;
 
   return (
     <section
       aria-labelledby="kokkuvote-pealkiri"
-      className="rounded-lg border border-blue-200 bg-blue-50 p-4"
+      className="@container rounded-lg border border-blue-200 bg-blue-50 p-4"
     >
       <h2 id="kokkuvote-pealkiri" className="text-base font-semibold text-slate-900">
         Faktiline kokkuvõte
@@ -48,7 +60,7 @@ export function FactSummary({ summary }: { summary: AtmFactSummary }) {
         kirjetest. See ei ole tehisintellekti diagnoos ega rikke põhjuse hinnang.
       </p>
 
-      <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[11rem_1fr]">
+      <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm @md:grid-cols-[11rem_1fr]">
         <dt className="text-slate-600">Võrdluskuupäev</dt>
         <dd className="font-semibold text-slate-900">
           <time dateTime={summary.referenceDate}>{formatIsoDay(summary.referenceDate)}</time>{" "}
@@ -63,7 +75,7 @@ export function FactSummary({ summary }: { summary: AtmFactSummary }) {
         </dd>
       </dl>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid gap-3 @lg:grid-cols-2">
         <section aria-labelledby="perioodi-rikked" className="rounded-md bg-white p-3">
           <h3 id="perioodi-rikked" className="text-sm text-slate-600">
             Registreeritud rikketeated perioodil
@@ -79,7 +91,7 @@ export function FactSummary({ summary }: { summary: AtmFactSummary }) {
             <ul className="mt-2 space-y-1 text-sm" aria-label="Loendatud rikketeated">
               {periodFaultCalls.map((call) => (
                 <li key={call.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <WorkOrderLink workOrder={call} />
+                  <WorkOrderLink workOrder={call} atmNumber={atmNumber} />
                   <time dateTime={isoDateTime(call.registeredAt)} className="text-slate-600">
                     {formatDateTime(call.registeredAt)}
                   </time>
@@ -103,7 +115,7 @@ export function FactSummary({ summary }: { summary: AtmFactSummary }) {
               </p>
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-700">
                 <span>{WORK_TYPE_LABELS[latest.workType]}</span>
-                <WorkOrderLink workOrder={latest} />
+                <WorkOrderLink workOrder={latest} atmNumber={atmNumber} />
                 <StatusBadge status={latest.status} />
               </p>
             </>
