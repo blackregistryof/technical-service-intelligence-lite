@@ -48,6 +48,10 @@ export type FaultCallListItem = {
   faultCode: CodeRef | null;
   originalDescription: string;
   status: WorkOrderStatus;
+  /** Number of recorded technician visits (visits are never counted as fault calls). */
+  visitCount: number;
+  /** Comment state of the most recent visit, without substituting older comments. */
+  latestComment: LatestTechnicianComment;
 };
 
 export type AtmListItem = AtmSummary & {

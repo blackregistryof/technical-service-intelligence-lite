@@ -42,6 +42,27 @@ export function countFaultCalls(count: number): string {
   return `${count} ${count === 1 ? "rikketeade" : "rikketeadet"}`;
 }
 
+/**
+ * Result line of the fault-call list, e.g. "Kuvatakse 4 ootel rikketeadet."
+ * or "Kuvatakse 1 aktiivne rikketeade otsingule „ATM-0103“."
+ */
+export function describeFaultCallResult(
+  count: number,
+  status: WorkOrderStatus | null,
+  query: string,
+): string {
+  const singular = count === 1;
+  // "avatud" and "ootel" do not inflect; "aktiivne" does.
+  const adjective = status
+    ? STATUS_LABELS[status].toLowerCase()
+    : singular
+      ? "aktiivne"
+      : "aktiivset";
+  const noun = singular ? "rikketeade" : "rikketeadet";
+  const suffix = query ? ` otsingule „${query}“` : "";
+  return `Kuvatakse ${count} ${adjective} ${noun}${suffix}.`;
+}
+
 export const STATUS_LABELS: Record<WorkOrderStatus, string> = {
   OPEN: "Avatud",
   HOLD: "Ootel",

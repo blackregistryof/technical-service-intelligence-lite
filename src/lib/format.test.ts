@@ -4,6 +4,7 @@ import {
   COMPLETENESS_LABELS,
   COMPLETENESS_STATE_LABELS,
   countFaultCalls,
+  describeFaultCallResult,
   formatDate,
   formatDateTime,
   formatIsoDay,
@@ -51,6 +52,23 @@ describe("completeness labels", () => {
       missing: "puudub",
       notApplicable: "ei kohaldu",
     });
+  });
+});
+
+describe("describeFaultCallResult", () => {
+  it("uses correct Estonian forms for all, open and hold results", () => {
+    assert.equal(describeFaultCallResult(9, null, ""), "Kuvatakse 9 aktiivset rikketeadet.");
+    assert.equal(describeFaultCallResult(1, null, ""), "Kuvatakse 1 aktiivne rikketeade.");
+    assert.equal(describeFaultCallResult(0, null, ""), "Kuvatakse 0 aktiivset rikketeadet.");
+    assert.equal(describeFaultCallResult(5, "OPEN", ""), "Kuvatakse 5 avatud rikketeadet.");
+    assert.equal(describeFaultCallResult(1, "HOLD", ""), "Kuvatakse 1 ootel rikketeade.");
+  });
+
+  it("mentions the search text", () => {
+    assert.equal(
+      describeFaultCallResult(1, "HOLD", "ATM-0101"),
+      "Kuvatakse 1 ootel rikketeade otsingule „ATM-0101“.",
+    );
   });
 });
 

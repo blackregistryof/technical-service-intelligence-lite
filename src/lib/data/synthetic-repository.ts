@@ -10,6 +10,7 @@ import {
 import {
   byRegisteredAtDesc,
   isActiveFaultCall,
+  latestTechnicianComment,
   matchesQuery,
   normalizeQuery,
   summarizeAtm,
@@ -70,8 +71,9 @@ export function createSyntheticRepository(
       const q = normalizeQuery(query);
       return dataset.workOrders
         .filter(isActiveFaultCall)
-        .map(
-          (w): FaultCallListItem => ({
+        .map((w): FaultCallListItem => {
+          const visits = visitsFor(w.id);
+          return {
             id: w.id,
             externalId: w.externalId,
             atm: atmSummary(w.atmId),
@@ -79,8 +81,10 @@ export function createSyntheticRepository(
             faultCode: codeRef("FAULT", w.faultCode),
             originalDescription: w.originalDescription,
             status: w.status,
-          }),
-        )
+            visitCount: visits.length,
+            latestComment: latestTechnicianComment(visits),
+          };
+        })
         .filter((item) => matchesQuery([item.externalId, item.atm.atmNumber], q))
         .sort(byRegisteredAtDesc);
     },

@@ -62,6 +62,39 @@ describe("listActiveFaultCalls", () => {
     assert.deepEqual(await repository.listActiveFaultCalls("ATM-0107"), []);
   });
 
+  it("includes the visit count and latest comment state for every active call", async () => {
+    const calls = await repository.listActiveFaultCalls();
+    assert.deepEqual(
+      calls.map((c) => [c.externalId, c.status, c.visitCount, c.latestComment.kind]),
+      [
+        ["WO-27602", "OPEN", 0, "no-visits"],
+        ["WO-27590", "OPEN", 0, "no-visits"],
+        ["WO-27570", "OPEN", 0, "no-visits"],
+        ["WO-27540", "OPEN", 0, "no-visits"],
+        ["WO-27520", "HOLD", 1, "missing"],
+        ["WO-27480", "HOLD", 1, "comment"],
+        ["WO-27495", "HOLD", 1, "comment"],
+        ["WO-27455", "HOLD", 2, "comment"],
+        ["WO-27410", "OPEN", 1, "comment"],
+      ],
+    );
+  });
+
+  it("uses the verbatim comment of the most recent visit in the list", async () => {
+    const calls = await repository.listActiveFaultCalls();
+    for (const call of calls) {
+      const detail = (await repository.getWorkOrder(call.id))!;
+      assert.equal(call.visitCount, detail.visits.length, call.externalId);
+      const latest = detail.visits.at(-1);
+      if (call.latestComment.kind === "comment") {
+        assert.equal(call.latestComment.text, latest?.originalComment, call.externalId);
+        assert.equal(call.latestComment.visitedAt.getTime(), latest?.visitedAt.getTime());
+      }
+    }
+    const wo27455 = calls.find((c) => c.externalId === "WO-27455")!;
+    assert.match(wo27455.latestComment.kind === "comment" ? wo27455.latestComment.text : "", /^Püsivara uuendus ei aidanud/);
+  });
+
   it("returns ATM details and the fault-code description", async () => {
     const [call] = await repository.listActiveFaultCalls("WO-27480");
     assert.deepEqual(call.atm, { id: "syn-atm-atm-0101", atmNumber: "ATM-0101", model: "Kassaline K5" });

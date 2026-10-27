@@ -9,7 +9,10 @@ import type {
 } from "../domain/types";
 
 export interface ServiceRepository {
-  /** OPEN and HOLD fault calls only, newest registration first. */
+  /**
+   * OPEN and HOLD fault calls only, newest registration first, each with its
+   * visit count and latest technician comment state.
+   */
   listActiveFaultCalls(query?: string | null): Promise<FaultCallListItem[]>;
   /** Any work order by its stable ID, with ATM and visits; null if unknown. */
   getWorkOrder(id: string): Promise<WorkOrder | null>;
