@@ -200,7 +200,44 @@ describe("work-type filter", () => {
   });
 });
 
+describe("work-order card hierarchy", () => {
+  it("orders ID, status, type, fault code, description and then the visits", async () => {
+    const { html } = await render({ atm: "ATM-0101" });
+    const t = timeline(html);
+    const card = t.slice(t.indexOf('aria-label="Rikketeade WO-27015"'), t.indexOf('id="syn-wo-wo-26102"'));
+    const at = (s: string) => card.indexOf(s);
+    assert.ok(at(">WO-27015<") < at("Staatus: </span>Suletud"));
+    assert.ok(at("Staatus: </span>Suletud") < at("Töö liik: </span>Rikketeade"));
+    assert.ok(at("Töö liik: </span>Rikketeade") < at(">F-DISP-01<"));
+    assert.ok(at(">F-DISP-01<") < at("Väljastusmoodul annab korduvalt veateate"));
+    assert.ok(at("Väljastusmoodul annab korduvalt veateate") < at("Tehnikukülastused (3)"));
+    assert.ok(at("Tehnikukülastused (3)") < at('id="syn-wo-wo-27015-v1"'));
+  });
+});
+
 describe("factual summary in the workspace", () => {
+  it("keeps every fact visible and puts only the counting rule in a native disclosure", async () => {
+    const { html } = await render({ atm: "ATM-0101" });
+    const s = between(html, 'id="kokkuvote-pealkiri"', 'id="ajalugu-pealkiri"');
+    const details = s.slice(s.indexOf("<details"), s.indexOf("</details>"));
+    assert.ok(details.includes("Kuidas loendatakse?"));
+    assert.ok(text(details).includes("Hooldustöid ja tehnikukülastusi ei loendata"));
+    const outside = s.replace(details, "");
+    for (const fact of [
+      "Sünteetilised demoandmed.",
+      "See ei ole tehisintellekti diagnoos ega rikke põhjuse hinnang.",
+      "25.10.2026",
+      "26.09.2026 00:00 – 25.10.2026 23:59",
+      "3 rikketeadet",
+      "Viimane registreeritud töö (kuni võrdluskuupäevani)",
+    ]) {
+      assert.ok(text(outside).includes(fact), fact);
+    }
+    for (const id of ["27602", "27480", "27015"]) {
+      assert.match(outside, new RegExp(`href="/rikketeated/syn-wo-wo-${id}"`), id);
+    }
+  });
+
   it("keeps the counts and links counted calls to their records", async () => {
     const { html } = await render({ atm: "ATM-0101" });
     const s = between(html, 'id="kokkuvote-pealkiri"', 'id="ajalugu-pealkiri"');

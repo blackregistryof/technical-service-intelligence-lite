@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     template: "%s | TSI Lite",
   },
   description:
-    "Sularahaautomaatide rikkekutsete ja tehnilise hoolduse ajaloo ülevaade (õppeotstarbeline prototüüp).",
+    "Sularahaautomaatide rikketeadete ja tehnilise hoolduse ajaloo ülevaade (õppeotstarbeline prototüüp).",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -20,7 +20,7 @@ export function LatestCommentPreview({
 }) {
   if (status !== "HOLD") {
     return (
-      <p className="text-xs text-slate-600">
+      <p className="text-meta text-slate-600">
         {visitCount === 0
           ? "Tehnikukülastusi pole registreeritud"
           : `${visitCount} ${visitCount === 1 ? "tehnikukülastus" : "tehnikukülastust"}`}
@@ -33,7 +33,7 @@ export function LatestCommentPreview({
   }
 
   const visitTime = (
-    <time dateTime={isoDateTime(latestComment.visitedAt)} className="text-xs text-slate-600">
+    <time dateTime={isoDateTime(latestComment.visitedAt)} className="text-meta text-slate-600">
       {formatDateTime(latestComment.visitedAt)}
     </time>
   );

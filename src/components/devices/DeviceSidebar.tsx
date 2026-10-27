@@ -6,14 +6,13 @@ import { ANALYSIS_PERIOD } from "@/lib/domain/analysis";
 import type { AtmListItem, WorkType } from "@/lib/domain/types";
 import { formatIsoDay } from "@/lib/format";
 import { deviceHref } from "@/lib/links";
+import { focusRing } from "@/components/ui/styles";
 
-const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
 function ActiveBadges({ atm }: { atm: AtmListItem }) {
   const { OPEN, HOLD } = atm.activeByStatus;
   if (OPEN === 0 && HOLD === 0) {
-    return <span className="text-xs text-slate-600">Aktiivseid rikketeateid pole</span>;
+    return <span className="text-meta text-slate-600">Aktiivseid rikketeateid pole</span>;
   }
   return (
     <span className="flex flex-wrap gap-1">
@@ -112,7 +111,7 @@ export function DeviceSidebar({
                   <span className="block text-slate-700">{atm.model}</span>
                   <span className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                     <ActiveBadges atm={atm} />
-                    <span className="text-xs whitespace-nowrap text-slate-700">
+                    <span className="text-meta whitespace-nowrap text-slate-700">
                       {atm.faultCallsInPeriod} / 30 p
                       <span className="sr-only"> registreeritud rikketeadet analüüsiperioodil</span>
                     </span>
@@ -123,7 +122,7 @@ export function DeviceSidebar({
           })}
         </ul>
       )}
-      <p className="text-xs text-slate-600">
+      <p className="text-meta text-slate-600">
         „/ 30 p“ = registreeritud rikketeateid analüüsiperioodil {formatIsoDay(period.startDay)}–
         {formatIsoDay(period.endDay)}. Märgid näitavad avatud ja ootel rikketeateid.
       </p>

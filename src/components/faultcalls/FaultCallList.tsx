@@ -2,12 +2,11 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/Badges";
 import { LatestCommentPreview } from "@/components/faultcalls/LatestCommentPreview";
 import { CodeChip } from "@/components/ui/CodeChip";
+import { focusRing } from "@/components/ui/styles";
 import type { FaultCallListItem } from "@/lib/domain/types";
 import { formatDateTime, isoDateTime } from "@/lib/format";
 import { faultCallDetailHref, type FaultCallListParams } from "@/lib/links";
 
-const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
 /**
  * Compact active fault-call list for the master-detail workspace. Each row
@@ -54,7 +53,7 @@ export function FaultCallList({
                 ) : null}
                 <time
                   dateTime={isoDateTime(call.registeredAt)}
-                  className="ml-auto text-xs whitespace-nowrap text-slate-600"
+                  className="ml-auto text-meta whitespace-nowrap text-slate-600"
                 >
                   <span className="sr-only">Registreeritud </span>
                   {formatDateTime(call.registeredAt)}

@@ -10,9 +10,8 @@ import { countByWorkType, filterByWorkType } from "@/lib/domain/filters";
 import type { AtmHistory, AtmListItem, WorkType } from "@/lib/domain/types";
 import { countVisits, countWorkOrders, WORK_TYPE_FILTER_LABELS } from "@/lib/format";
 import { deviceHref } from "@/lib/links";
+import { recordLink, textLink } from "@/components/ui/styles";
 
-const linkClass =
-  "rounded-sm font-medium text-blue-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
 function DeviceDetail({
   history,
@@ -30,7 +29,7 @@ function DeviceDetail({
   const shownVisits = shown.reduce((sum, w) => sum + w.visits.length, 0);
 
   return (
-    <article aria-labelledby="seade-pealkiri" className="min-w-0 space-y-4">
+    <article aria-labelledby="seade-pealkiri" className="min-w-0 space-y-3 sm:space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div>
           <h1 id="seade-pealkiri" className="text-2xl font-semibold text-slate-900">
@@ -49,7 +48,7 @@ function DeviceDetail({
                   key={call.id}
                   className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1"
                 >
-                  <Link href={`/rikketeated/${call.id}`} className={linkClass}>
+                  <Link href={`/rikketeated/${call.id}`} className={recordLink}>
                     {call.externalId}
                   </Link>
                   <StatusBadge status={call.status} showIcon />
@@ -60,7 +59,7 @@ function DeviceDetail({
         </div>
       </header>
 
-      <div className="space-y-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(18rem,21rem)] xl:items-start xl:gap-4 xl:space-y-0">
+      <div className="space-y-3 sm:space-y-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(17rem,19rem)] xl:items-start xl:gap-5 xl:space-y-0">
         <div className="xl:sticky xl:top-4 xl:col-start-2 xl:row-start-1">
           <FactSummary summary={summary} atmNumber={atm.atmNumber} />
         </div>
@@ -87,7 +86,7 @@ function DeviceDetail({
             <p className="text-sm text-slate-700" aria-live="polite">
               Kuvatakse {countWorkOrders(shown.length)} ({WORK_TYPE_FILTER_LABELS[workType].toLowerCase()}
               ) ja {countVisits(shownVisits)}.{" "}
-              <Link href={deviceHref(atm.atmNumber, { query })} className={linkClass}>
+              <Link href={deviceHref(atm.atmNumber, { query })} className={textLink}>
                 Näita kõiki töid
               </Link>
             </p>
@@ -130,7 +129,7 @@ export function DeviceWorkspace({
   const selected = history?.atm.atmNumber ?? null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <header className={`space-y-1 ${selected ? "hidden lg:block" : ""}`}>
         {selected ? (
           <p className="text-2xl font-semibold text-slate-900">Seadmed</p>
@@ -146,13 +145,13 @@ export function DeviceWorkspace({
 
       {selected ? (
         <nav aria-label="Asukoht" className="text-sm lg:hidden">
-          <Link href={deviceHref(null, { query })} className={`${linkClass} underline`}>
+          <Link href={deviceHref(null, { query })} className={textLink}>
             ← Seadmed
           </Link>
         </nav>
       ) : null}
 
-      <div className="gap-4 lg:grid lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)] lg:items-start">
+      <div className="gap-4 lg:grid lg:grid-cols-[minmax(15rem,17rem)_minmax(0,1fr)] lg:items-start">
         <div className={selected ? "hidden lg:block" : ""}>
           <DeviceSidebar atms={atms} query={query} selectedAtmNumber={selected} workType={workType} />
         </div>

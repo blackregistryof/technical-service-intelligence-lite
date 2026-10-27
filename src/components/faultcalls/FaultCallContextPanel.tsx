@@ -12,9 +12,9 @@ import {
   WORK_TYPE_LABELS,
 } from "@/lib/format";
 import { faultCallDetailHref, type FaultCallListParams } from "@/lib/links";
+import { recordLink } from "@/components/ui/styles";
 
-const linkClass =
-  "rounded-sm font-medium text-blue-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+const linkClass = recordLink;
 
 /** Fault calls open in the workspace (keeping the list state); maintenance links to the history entry. */
 function hrefFor(item: WorkOrderRef, atmNumber: string, listParams: FaultCallListParams) {
@@ -41,7 +41,7 @@ function RefRow({
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
       {showType ? (
-        <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+        <span className="inline-flex items-center gap-1 text-meta text-slate-600">
           <WorkTypeIcon workType={item.workType} />
           <span className="sr-only">{WORK_TYPE_LABELS[item.workType]}</span>
         </span>
@@ -53,9 +53,9 @@ function RefRow({
       >
         {item.externalId}
       </Link>
-      {isCurrent ? <span className="text-xs font-semibold text-slate-700">(valitud)</span> : null}
+      {isCurrent ? <span className="text-meta font-semibold text-slate-700">(valitud)</span> : null}
       <StatusBadge status={item.status} showIcon />
-      <time dateTime={isoDateTime(item.registeredAt)} className="ml-auto text-xs text-slate-600">
+      <time dateTime={isoDateTime(item.registeredAt)} className="ml-auto text-meta text-slate-600">
         {dateOnly ? formatDate(item.registeredAt) : formatDateTime(item.registeredAt)}
       </time>
     </li>
@@ -84,7 +84,7 @@ export function FaultCallContextPanel({
       className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
     >
       <header>
-        <h2 id="kontekst-pealkiri" className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
+        <h2 id="kontekst-pealkiri" className="text-meta font-semibold text-slate-700">
           Automaadi kontekst
         </h2>
         <p className="mt-0.5 text-lg font-semibold text-slate-900">
@@ -97,7 +97,7 @@ export function FaultCallContextPanel({
       </header>
 
       <section aria-labelledby="kontekst-perioodil" className="rounded-md bg-slate-50 p-3">
-        <h3 id="kontekst-perioodil" className="text-xs text-slate-600">
+        <h3 id="kontekst-perioodil" className="text-meta text-slate-600">
           Rikketeated {formatIsoDay(period.startDay)}–{formatIsoDay(period.endDay)} ({period.days}{" "}
           päeva)
         </h3>

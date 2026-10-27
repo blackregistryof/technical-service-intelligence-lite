@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { StatusBadge, WorkTypeBadge } from "@/components/Badges";
 import { CodeChip } from "@/components/ui/CodeChip";
-import { WorkTypeIcon } from "@/components/ui/icons";
+import { VisitIcon, WorkTypeIcon } from "@/components/ui/icons";
+import { recordLink } from "@/components/ui/styles";
 import { MissingValue } from "@/components/ui/MissingValue";
 import { VisitItem } from "@/components/ui/VisitItem";
 import { groupByMonth, periodStartIndex } from "@/lib/domain/timeline";
@@ -18,7 +19,7 @@ function PeriodMarker({ period, position }: { period: AnalysisPeriod; position: 
     <li role="presentation" className="py-1">
       <p
         role="note"
-        className="flex items-center gap-2 text-xs font-medium text-slate-600 before:h-px before:flex-1 before:border-t before:border-dashed before:border-slate-400 after:h-px after:flex-1 after:border-t after:border-dashed after:border-slate-400"
+        className="flex items-center gap-2 text-meta font-medium text-slate-700 before:h-px before:flex-1 before:border-t before:border-dashed before:border-slate-400 after:h-px after:flex-1 after:border-t after:border-dashed after:border-slate-400"
       >
         {position === "before"
           ? `Analüüsiperioodi algus ${formatIsoDay(period.startDay)} – varasemad tööd ei kuulu ${period.days} päeva rikketeadete loendusse`
@@ -35,7 +36,7 @@ function TimelineEntry({ workOrder }: { workOrder: WorkOrder }) {
     <li id={workOrder.id} className="grid scroll-mt-4 grid-cols-[3rem_1.75rem_minmax(0,1fr)] gap-x-2 sm:grid-cols-[3.5rem_2rem_minmax(0,1fr)]">
       <time dateTime={isoDateTime(workOrder.registeredAt)} className="pt-2.5 text-right leading-tight">
         <span className="block text-sm font-semibold text-slate-900">{formatDayMonth(workOrder.registeredAt)}</span>
-        <span className="block text-xs text-slate-600">{formatTime(workOrder.registeredAt)}</span>
+        <span className="block text-meta text-slate-600">{formatTime(workOrder.registeredAt)}</span>
       </time>
       <span className="relative flex justify-center pt-2 before:absolute before:top-0 before:bottom-[-0.75rem] before:w-px before:bg-slate-300">
         <span className={`relative flex h-7 w-7 items-center justify-center rounded-full border ${styles.marker}`}>
@@ -46,38 +47,37 @@ function TimelineEntry({ workOrder }: { workOrder: WorkOrder }) {
         aria-label={`${workOrder.workType === "FAULT_CALL" ? "Rikketeade" : "Hooldustöö"} ${workOrder.externalId}`}
         className={`min-w-0 rounded-lg border border-slate-200 p-3 shadow-sm ${styles.card}`}
       >
-        <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <h4 className="text-base font-semibold text-slate-900">
-            {workOrder.workType === "FAULT_CALL" ? (
-              <Link
-                href={`/rikketeated/${workOrder.id}`}
-                className="rounded-sm text-blue-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-              >
-                {workOrder.externalId}
-              </Link>
-            ) : (
-              workOrder.externalId
-            )}
-          </h4>
-          <WorkTypeBadge workType={workOrder.workType} showIcon />
-          <StatusBadge status={workOrder.status} showIcon />
+        {/* 1: identification and status, 2: fault code, 3: the original description (primary text). */}
+        <header className="space-y-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h4 className="text-base font-semibold text-slate-900">
+              {workOrder.workType === "FAULT_CALL" ? (
+                <Link href={`/rikketeated/${workOrder.id}`} className={recordLink}>
+                  {workOrder.externalId}
+                </Link>
+              ) : (
+                workOrder.externalId
+              )}
+            </h4>
+            <StatusBadge status={workOrder.status} showIcon />
+            <WorkTypeBadge workType={workOrder.workType} showIcon />
+          </div>
           {workOrder.workType === "FAULT_CALL" ? (
-            <span className="inline-flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-sm">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-sm text-slate-700">
               <span className="sr-only">Rikkekood: </span>
               <CodeChip code={workOrder.faultCode} showDescription={false} />
-              {workOrder.faultCode?.description ? (
-                <span className="text-slate-800">{workOrder.faultCode.description}</span>
-              ) : null}
-            </span>
+              {workOrder.faultCode?.description ? <span>{workOrder.faultCode.description}</span> : null}
+            </p>
           ) : null}
         </header>
-        <p className="mt-1.5 whitespace-pre-line break-words text-sm text-slate-900">
+        <p className="mt-1.5 text-[0.9375rem] leading-6 whitespace-pre-line break-words text-slate-900">
           <span className="sr-only">Kirjeldus: </span>
           {workOrder.originalDescription}
         </p>
 
-        <div className="mt-2 border-t border-slate-200 pt-2">
-          <h5 className="mb-1.5 text-xs font-semibold tracking-wide text-slate-600 uppercase">
+        <div className="mt-2.5 border-l-2 border-slate-200 pl-3">
+          <h5 className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+            <VisitIcon className="h-3.5 w-3.5 text-slate-500" />
             Tehnikukülastused ({visits.length})
           </h5>
           {visits.length === 0 ? (

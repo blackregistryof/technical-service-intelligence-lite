@@ -11,9 +11,9 @@ import { selectionState } from "@/lib/domain/selection";
 import type { FaultCallListItem, WorkOrder } from "@/lib/domain/types";
 import { describeFaultCallResult } from "@/lib/format";
 import { faultCallDetailHref, faultCallListHref, withListParams } from "@/lib/links";
+import { textLink } from "@/components/ui/styles";
 
-const linkClass =
-  "rounded-sm font-medium text-blue-800 underline underline-offset-2 hover:text-blue-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+const linkClass = textLink;
 
 /**
  * Rikketeated master-detail workspace (server component).

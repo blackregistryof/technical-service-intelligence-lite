@@ -10,6 +10,12 @@
   --color-foreground: var(--foreground);
 }
 
+@theme {
+  /* Secondary metadata (times, counts, panel labels): 13 px, between text-xs and text-sm. */
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.25rem;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

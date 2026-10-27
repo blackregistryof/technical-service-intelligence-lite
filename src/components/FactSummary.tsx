@@ -9,9 +9,7 @@ import {
   WORK_TYPE_LABELS,
 } from "@/lib/format";
 import { deviceHref } from "@/lib/links";
-
-const linkClass =
-  "text-blue-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+import { focusRing, recordLink } from "@/components/ui/styles";
 
 /**
  * Links to the record's own page for fault calls, otherwise to its entry in
@@ -23,7 +21,7 @@ function WorkOrderLink({ workOrder, atmNumber }: { workOrder: WorkOrderRef; atmN
       ? `/rikketeated/${workOrder.id}`
       : deviceHref(atmNumber, {}, workOrder.id);
   return (
-    <Link href={href} className={`font-medium ${linkClass}`}>
+    <Link href={href} className={recordLink}>
       {workOrder.externalId}
     </Link>
   );
@@ -46,7 +44,7 @@ export function FactSummary({
   return (
     <section
       aria-labelledby="kokkuvote-pealkiri"
-      className="@container rounded-lg border border-blue-200 bg-blue-50 p-4"
+      className="@container rounded-lg border border-blue-200 bg-blue-50 p-3 @md:p-4"
     >
       <h2 id="kokkuvote-pealkiri" className="text-base font-semibold text-slate-900">
         Faktiline kokkuvõte
@@ -54,13 +52,13 @@ export function FactSummary({
 
       <p
         role="note"
-        className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+        className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-meta text-amber-950"
       >
         <strong>Sünteetilised demoandmed.</strong> Kokkuvõte on reeglipõhine loendus salvestatud
         kirjetest. See ei ole tehisintellekti diagnoos ega rikke põhjuse hinnang.
       </p>
 
-      <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm @md:grid-cols-[11rem_1fr]">
+      <dl className="mt-2 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-sm">
         <dt className="text-slate-600">Võrdluskuupäev</dt>
         <dd className="font-semibold text-slate-900">
           <time dateTime={summary.referenceDate}>{formatIsoDay(summary.referenceDate)}</time>{" "}
@@ -75,24 +73,24 @@ export function FactSummary({
         </dd>
       </dl>
 
-      <div className="mt-3 grid gap-3 @lg:grid-cols-2">
-        <section aria-labelledby="perioodi-rikked" className="rounded-md bg-white p-3">
-          <h3 id="perioodi-rikked" className="text-sm text-slate-600">
+      <div className="mt-2 grid gap-2 @lg:grid-cols-2">
+        <section aria-labelledby="perioodi-rikked" className="rounded-md bg-white px-3 py-2">
+          <h3 id="perioodi-rikked" className="text-meta text-slate-600">
             Registreeritud rikketeated perioodil
           </h3>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
+          <p className="text-xl font-semibold text-slate-900">
             {countFaultCalls(summary.faultCallsInPeriod)}
           </p>
           {periodFaultCalls.length === 0 ? (
-            <p className="mt-1 text-sm text-slate-700">
+            <p className="text-sm text-slate-700">
               Analüüsiperioodil ei registreeritud selle automaadi kohta ühtegi rikketeadet.
             </p>
           ) : (
-            <ul className="mt-2 space-y-1 text-sm" aria-label="Loendatud rikketeated">
+            <ul className="mt-1 space-y-0.5 text-sm" aria-label="Loendatud rikketeated">
               {periodFaultCalls.map((call) => (
-                <li key={call.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <li key={call.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <WorkOrderLink workOrder={call} atmNumber={atmNumber} />
-                  <time dateTime={isoDateTime(call.registeredAt)} className="text-slate-600">
+                  <time dateTime={isoDateTime(call.registeredAt)} className="text-slate-700">
                     {formatDateTime(call.registeredAt)}
                   </time>
                   <StatusBadge status={call.status} />
@@ -102,36 +100,42 @@ export function FactSummary({
           )}
         </section>
 
-        <section aria-labelledby="viimane-too" className="rounded-md bg-white p-3">
-          <h3 id="viimane-too" className="text-sm text-slate-600">
+        <section aria-labelledby="viimane-too" className="rounded-md bg-white px-3 py-2">
+          <h3 id="viimane-too" className="text-meta text-slate-600">
             Viimane registreeritud töö (kuni võrdluskuupäevani)
           </h3>
           {latest ? (
             <>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">
+              <p className="text-lg font-semibold text-slate-900">
                 <time dateTime={isoDateTime(latest.registeredAt)}>
                   {formatDateTime(latest.registeredAt)}
                 </time>
               </p>
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-700">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-700">
                 <span>{WORK_TYPE_LABELS[latest.workType]}</span>
                 <WorkOrderLink workOrder={latest} atmNumber={atmNumber} />
                 <StatusBadge status={latest.status} />
               </p>
             </>
           ) : (
-            <p className="mt-1 text-sm text-slate-700">
+            <p className="text-sm text-slate-700">
               Selle automaadi kohta ei ole registreeritud ühtegi tööd.
             </p>
           )}
         </section>
       </div>
 
-      <p className="mt-3 text-xs text-slate-600">
-        Loendatakse rikketeateid (töökäske) nende registreerimise aja järgi, olenemata staatusest.
-        Hooldustöid ja tehnikukülastusi ei loendata; mitu külastust ühe rikketeate juures loetakse
-        üheks rikketeateks. Viimane registreeritud töö võib olla ka hooldustöö.
-      </p>
+      {/* Native disclosure: no JavaScript, the text stays in the HTML for search and assistive tech. */}
+      <details className="mt-2 text-meta text-slate-700">
+        <summary className={`cursor-pointer rounded-sm font-medium text-slate-800 ${focusRing}`}>
+          Kuidas loendatakse?
+        </summary>
+        <p className="mt-1">
+          Loendatakse rikketeateid (töökäske) nende registreerimise aja järgi, olenemata
+          staatusest. Hooldustöid ja tehnikukülastusi ei loendata; mitu külastust ühe rikketeate
+          juures loetakse üheks rikketeateks. Viimane registreeritud töö võib olla ka hooldustöö.
+        </p>
+      </details>
     </section>
   );
 }
