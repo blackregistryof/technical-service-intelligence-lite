@@ -9,7 +9,7 @@ export default function ProtectedLayout({ children }: LayoutProps<"/">) {
       <AppHeader />
       <main
         id="sisu"
-        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
+        className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-6 sm:px-6 lg:px-8"
       >
         {children}
       </main>

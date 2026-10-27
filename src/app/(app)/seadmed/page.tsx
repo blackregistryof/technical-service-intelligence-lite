@@ -14,7 +14,7 @@ export default async function SeadmedPage(props: PageProps<"/seadmed">) {
   const atms = await repository.searchAtms(query);
 
   return (
-    <section aria-labelledby="seadmed-pealkiri" className="space-y-5">
+    <section aria-labelledby="seadmed-pealkiri" className="mx-auto w-full max-w-[68rem] space-y-5">
       <header className="space-y-1">
         <h1 id="seadmed-pealkiri" className="text-2xl font-semibold text-slate-900">
           Seadmed

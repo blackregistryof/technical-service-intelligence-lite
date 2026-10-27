@@ -2,7 +2,7 @@ import Link from "next/link";
 import { StatusIcon } from "@/components/ui/icons";
 import type { ActiveStatus, StatusCounts } from "@/lib/domain/filters";
 import { ALL_FILTER_LABEL, STATUS_LABELS } from "@/lib/format";
-import { faultCallListHref } from "@/lib/links";
+import { withListParams } from "@/lib/links";
 
 const OPTIONS: { status: ActiveStatus | null; label: string }[] = [
   { status: null, label: ALL_FILTER_LABEL },
@@ -18,21 +18,24 @@ export function StatusFilter({
   counts,
   selected,
   query,
+  basePath = "/rikketeated",
 }: {
   counts: StatusCounts;
   selected: ActiveStatus | null;
   query: string;
+  /** Path the filter links point to; a detail path keeps the selected call. */
+  basePath?: string;
 }) {
   return (
     <nav aria-label="Staatuse filter">
-      <ul className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
+      <ul className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
         {OPTIONS.map(({ status, label }) => {
           const isSelected = status === selected;
           const count = status === null ? counts.total : counts[status];
           return (
             <li key={label}>
               <Link
-                href={faultCallListHref({ query, status })}
+                href={withListParams(basePath, { query, status })}
                 aria-current={isSelected ? "page" : undefined}
                 className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
                   isSelected

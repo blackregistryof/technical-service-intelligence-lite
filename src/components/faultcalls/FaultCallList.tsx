@@ -4,82 +4,88 @@ import { LatestCommentPreview } from "@/components/faultcalls/LatestCommentPrevi
 import { CodeChip } from "@/components/ui/CodeChip";
 import type { FaultCallListItem } from "@/lib/domain/types";
 import { formatDateTime, isoDateTime } from "@/lib/format";
+import { faultCallDetailHref, type FaultCallListParams } from "@/lib/links";
 
-// One markup for all widths: a compact five-column table from 1024 px (lg),
-// stacked rows with visible field labels below that. No horizontal scrolling.
-const COLUMNS =
-  "lg:grid lg:grid-cols-[9rem_9.5rem_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.2fr)] lg:gap-x-4";
+const focusRing =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
-const linkClass =
-  "rounded-sm text-blue-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
-
-/** Field label: visible on narrow screens, announced to screen readers on wide ones. */
-function FieldLabel({ children }: { children: React.ReactNode }) {
+/**
+ * Compact active fault-call list for the master-detail workspace. Each row
+ * opens the call's detail; the whole row is clickable through the ID link
+ * (stretched), while the ATM link stays separately reachable. The selected
+ * call is marked with aria-current, a bar, a background and a "Valitud" label.
+ */
+export function FaultCallList({
+  items,
+  selectedId = null,
+  listParams = {},
+}: {
+  items: FaultCallListItem[];
+  selectedId?: string | null;
+  listParams?: FaultCallListParams;
+}) {
   return (
-    <span className="mb-0.5 block text-xs font-medium text-slate-500 lg:sr-only">{children}</span>
-  );
-}
-
-export function FaultCallList({ items }: { items: FaultCallListItem[] }) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div
-        aria-hidden="true"
-        className={`hidden border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-600 ${COLUMNS}`}
-      >
-        <span>Rikketeade</span>
-        <span>Automaat</span>
-        <span>Rikkekood</span>
-        <span>Kirjeldus</span>
-        <span>Viimane tehniku kommentaar</span>
-      </div>
-      <ul className="divide-y divide-slate-200">
-        {items.map((call) => (
-          <li key={call.id}>
-            <article
-              aria-label={`Rikketeade ${call.externalId}`}
-              className={`space-y-2 px-4 py-3 text-sm lg:space-y-0 ${COLUMNS}`}
-            >
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 lg:flex-col lg:items-start">
-                <h2 className="text-base font-semibold leading-tight">
-                  <Link href={`/rikketeated/${call.id}`} className={linkClass}>
+    <ul className="divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      {items.map((call) => {
+        const isSelected = call.id === selectedId;
+        return (
+          <li
+            key={call.id}
+            className={`relative border-l-4 px-3 py-2.5 text-sm has-[a.peer:focus-visible]:bg-blue-50 ${
+              isSelected ? "border-l-blue-700 bg-blue-50" : "border-l-transparent hover:bg-slate-50"
+            }`}
+          >
+            <article aria-label={`Rikketeade ${call.externalId}`} className="space-y-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h3 className="text-base font-semibold leading-tight">
+                  <Link
+                    href={faultCallDetailHref(call.id, listParams)}
+                    aria-current={isSelected ? "page" : undefined}
+                    className={`peer rounded-sm text-blue-800 underline-offset-2 after:absolute after:inset-0 hover:underline ${focusRing}`}
+                  >
                     {call.externalId}
                   </Link>
-                </h2>
+                </h3>
                 <StatusBadge status={call.status} showIcon />
-                <time dateTime={isoDateTime(call.registeredAt)} className="text-slate-700">
+                {isSelected ? (
+                  <span className="rounded bg-blue-700 px-1.5 py-0.5 text-xs font-semibold text-white">
+                    Valitud
+                  </span>
+                ) : null}
+                <time
+                  dateTime={isoDateTime(call.registeredAt)}
+                  className="ml-auto text-xs whitespace-nowrap text-slate-600"
+                >
                   <span className="sr-only">Registreeritud </span>
                   {formatDateTime(call.registeredAt)}
                 </time>
               </div>
 
-              <div className="min-w-0">
-                <FieldLabel>Automaat</FieldLabel>
-                <Link href={`/seadmed/${call.atm.atmNumber}`} className={`font-medium ${linkClass}`}>
+              <p className="min-w-0 text-slate-700">
+                <Link
+                  href={`/seadmed/${call.atm.atmNumber}`}
+                  className={`relative z-10 rounded-sm font-medium text-blue-800 underline-offset-2 hover:underline ${focusRing}`}
+                >
                   {call.atm.atmNumber}
                 </Link>{" "}
-                <span className="text-slate-600 lg:block">{call.atm.model}</span>
-              </div>
+                {call.atm.model}
+              </p>
 
-              <div className="min-w-0">
-                <FieldLabel>Rikkekood</FieldLabel>
+              <p className="flex min-w-0 items-baseline gap-1.5">
+                <span className="sr-only">Rikkekood: </span>
                 <CodeChip code={call.faultCode} showDescription={false} />
                 {call.faultCode?.description ? (
-                  <span className="ml-1.5 text-slate-800 lg:ml-0 lg:mt-0.5 lg:block">
-                    {call.faultCode.description}
-                  </span>
+                  <span className="truncate text-slate-700">{call.faultCode.description}</span>
                 ) : null}
-              </div>
+              </p>
 
-              <div className="min-w-0">
-                <FieldLabel>Kirjeldus</FieldLabel>
-                <p className="line-clamp-2 break-words text-slate-900 lg:line-clamp-3">
-                  {call.originalDescription}
-                </p>
-              </div>
+              <p className="line-clamp-2 break-words text-slate-900">
+                <span className="sr-only">Kirjeldus: </span>
+                {call.originalDescription}
+              </p>
 
-              <div className="min-w-0">
-                <FieldLabel>Viimane tehniku kommentaar</FieldLabel>
+              <div className={call.status === "HOLD" ? "rounded-md bg-amber-50 px-2 py-1.5" : ""}>
+                <span className="sr-only">Viimane tehniku kommentaar: </span>
                 <LatestCommentPreview
                   status={call.status}
                   latestComment={call.latestComment}
@@ -88,8 +94,8 @@ export function FaultCallList({ items }: { items: FaultCallListItem[] }) {
               </div>
             </article>
           </li>
-        ))}
-      </ul>
-    </div>
+        );
+      })}
+    </ul>
   );
 }

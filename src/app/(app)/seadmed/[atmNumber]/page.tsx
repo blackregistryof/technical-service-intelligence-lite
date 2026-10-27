@@ -22,7 +22,7 @@ export default async function AtmHistoryPage(props: PageProps<"/seadmed/[atmNumb
   const { atm, summary, workOrders } = history;
 
   return (
-    <article aria-labelledby="seade-pealkiri" className="space-y-6">
+    <article aria-labelledby="seade-pealkiri" className="mx-auto w-full max-w-[68rem] space-y-6">
       <nav aria-label="Asukoht" className="text-sm">
         <Link href="/seadmed" className="text-blue-800 underline-offset-2 hover:underline">
           ← Seadmed
