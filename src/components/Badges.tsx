@@ -1,8 +1,10 @@
+import { StatusIcon, WorkTypeIcon } from "@/components/ui/icons";
 import type { WorkOrderStatus, WorkType } from "@/lib/domain/types";
 import { STATUS_LABELS, WORK_TYPE_LABELS } from "@/lib/format";
 
 const badgeBase =
   "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap";
+const iconGap = (showIcon: boolean) => (showIcon ? " gap-1" : "");
 
 const STATUS_STYLES: Record<WorkOrderStatus, string> = {
   OPEN: "border-red-200 bg-red-50 text-red-800",
@@ -15,18 +17,34 @@ const WORK_TYPE_STYLES: Record<WorkType, string> = {
   MAINTENANCE: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
-export function StatusBadge({ status }: { status: WorkOrderStatus }) {
+/** Status label; colour is never the only signal. `showIcon` is off by default. */
+export function StatusBadge({
+  status,
+  showIcon = false,
+}: {
+  status: WorkOrderStatus;
+  showIcon?: boolean;
+}) {
   return (
-    <span className={`${badgeBase} ${STATUS_STYLES[status]}`}>
+    <span className={`${badgeBase}${iconGap(showIcon)} ${STATUS_STYLES[status]}`}>
+      {showIcon ? <StatusIcon status={status} /> : null}
       <span className="sr-only">Staatus: </span>
       {STATUS_LABELS[status]}
     </span>
   );
 }
 
-export function WorkTypeBadge({ workType }: { workType: WorkType }) {
+/** Work-type label (fault call or maintenance order). `showIcon` is off by default. */
+export function WorkTypeBadge({
+  workType,
+  showIcon = false,
+}: {
+  workType: WorkType;
+  showIcon?: boolean;
+}) {
   return (
-    <span className={`${badgeBase} ${WORK_TYPE_STYLES[workType]}`}>
+    <span className={`${badgeBase}${iconGap(showIcon)} ${WORK_TYPE_STYLES[workType]}`}>
+      {showIcon ? <WorkTypeIcon workType={workType} /> : null}
       <span className="sr-only">Töö liik: </span>
       {WORK_TYPE_LABELS[workType]}
     </span>

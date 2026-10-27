@@ -1,3 +1,4 @@
+import type { CompletenessKey, CompletenessState } from "@/lib/domain/completeness";
 import type { WorkOrderStatus, WorkType } from "@/lib/domain/types";
 
 // Timestamps are stored in UTC and shown in Estonian time.
@@ -51,3 +52,37 @@ export const WORK_TYPE_LABELS: Record<WorkType, string> = {
   FAULT_CALL: "Rikketeade",
   MAINTENANCE: "Hooldustöö",
 };
+
+/** Plural labels for work-type filters. */
+export const WORK_TYPE_FILTER_LABELS: Record<WorkType, string> = {
+  FAULT_CALL: "Rikketeated",
+  MAINTENANCE: "Hooldustööd",
+};
+
+export const ALL_FILTER_LABEL = "Kõik";
+
+export const COMPLETENESS_LABELS: Record<CompletenessKey, string> = {
+  faultCode: "Rikkekood",
+  description: "Algne kirjeldus",
+  visit: "Tehnikukülastus",
+  visitComment: "Viimase külastuse kommentaar",
+};
+
+export const COMPLETENESS_STATE_LABELS: Record<CompletenessState, string> = {
+  present: "olemas",
+  missing: "puudub",
+  notApplicable: "ei kohaldu",
+};
+
+const MONTH_FORMAT = new Intl.DateTimeFormat("et-EE", {
+  timeZone: "UTC",
+  month: "long",
+  year: "numeric",
+});
+
+/** "2026-10" → "Oktoober 2026". The key is already a local calendar month. */
+export function formatMonthKey(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  const label = MONTH_FORMAT.format(new Date(Date.UTC(year, month - 1, 15)));
+  return label.charAt(0).toLocaleUpperCase("et-EE") + label.slice(1);
+}

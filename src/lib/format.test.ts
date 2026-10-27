@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { countFaultCalls, formatDate, formatDateTime, formatIsoDay } from "./format";
+import {
+  COMPLETENESS_LABELS,
+  COMPLETENESS_STATE_LABELS,
+  countFaultCalls,
+  formatDate,
+  formatDateTime,
+  formatIsoDay,
+  formatMonthKey,
+} from "./format";
 
 describe("Estonian date formatting (Europe/Tallinn)", () => {
   it("converts UTC to Estonian summer and winter time", () => {
@@ -18,6 +26,31 @@ describe("Estonian date formatting (Europe/Tallinn)", () => {
   it("formats ISO days without time-zone conversion", () => {
     assert.equal(formatIsoDay("2026-10-25"), "25.10.2026");
     assert.equal(formatIsoDay("2026-09-26"), "26.09.2026");
+  });
+});
+
+describe("formatMonthKey", () => {
+  it("formats calendar months in Estonian with a capital letter", () => {
+    assert.equal(formatMonthKey("2026-10"), "Oktoober 2026");
+    assert.equal(formatMonthKey("2026-09"), "September 2026");
+    assert.equal(formatMonthKey("2026-03"), "Märts 2026");
+    assert.equal(formatMonthKey("2027-01"), "Jaanuar 2027");
+  });
+});
+
+describe("completeness labels", () => {
+  it("has an Estonian label for every check and state", () => {
+    assert.deepEqual(Object.keys(COMPLETENESS_LABELS), [
+      "faultCode",
+      "description",
+      "visit",
+      "visitComment",
+    ]);
+    assert.deepEqual(COMPLETENESS_STATE_LABELS, {
+      present: "olemas",
+      missing: "puudub",
+      notApplicable: "ei kohaldu",
+    });
   });
 });
 

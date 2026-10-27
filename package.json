@@ -14,7 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "test": "node --import tsx --test \"prisma/**/*.test.ts\" \"src/**/*.test.ts\"",
+    "test": "node --import tsx --test \"prisma/**/*.test.ts\" \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
