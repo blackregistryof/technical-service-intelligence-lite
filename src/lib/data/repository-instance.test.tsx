@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DeviceWorkspace } from "@/components/devices/DeviceWorkspace";
 import { getRepository } from "@/lib/data/repository-instance";
+import { DataSourceConfigError } from "@/lib/data/source";
 
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
@@ -60,6 +61,37 @@ describe("getRepository (the data path of the Seadmed pages)", () => {
       "ATM-0107 Numera DX-300 Aktiivseid rikketeateid pole 1 / 30 p",
     ]) {
       assert.ok(content.includes(expected), expected);
+    }
+  });
+
+  it("fails closed for postgres and for invalid production configuration", () => {
+    const saved = { DATA_SOURCE: process.env.DATA_SOURCE, NODE_ENV: process.env.NODE_ENV };
+    const env = process.env as Record<string, string | undefined>;
+    const cases: [string | undefined, string | undefined, RegExp][] = [
+      ["postgres", "development", /PostgreSQL adapter is not implemented yet/],
+      ["postgres", "production", /PostgreSQL adapter is not implemented yet/],
+      ["synthetic", "production", /not allowed in production/],
+      [undefined, "production", /not set/],
+      ["unknown", "production", /Unsupported DATA_SOURCE value/],
+    ];
+    try {
+      // The synthetic instance is already cached by the tests above; it must not be returned.
+      assert.ok(getRepository());
+      for (const [DATA_SOURCE, NODE_ENV, message] of cases) {
+        env.DATA_SOURCE = DATA_SOURCE;
+        if (DATA_SOURCE === undefined) delete env.DATA_SOURCE;
+        env.NODE_ENV = NODE_ENV;
+        assert.throws(
+          () => getRepository(),
+          (error) => error instanceof DataSourceConfigError && message.test(error.message),
+          `${DATA_SOURCE} / ${NODE_ENV}`,
+        );
+      }
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete env[key];
+        else env[key] = value;
+      }
     }
   });
 

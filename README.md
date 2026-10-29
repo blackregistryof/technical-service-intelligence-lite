@@ -111,6 +111,7 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - Deterministic synthetic dataset with automated tests and an idempotent seed script (Stage 3). The seed has **not** yet been run against PostgreSQL.
 - **Rikketeated** (active fault calls, search, detail with technician visits) and **Seadmed** (ATM search, work-order history, factual summary) views, served from a **temporary synthetic data adapter** (Stage 4).
 - Basic factual analysis on the device page: fixed reference date, exact 30-day period, linked list of counted fault calls, latest registered work, and a synthetic-data / not-AI label (Stage 5).
+- Production data-source guard (synthetic data is never served by a production build; `postgres` is the only accepted production value), a startup data-source log line and production-only HSTS (Stage 6B).
 
 **Pending:**
 
@@ -127,9 +128,27 @@ The views read data only through `getServiceRepository()` in `src/lib/dal.ts`, w
 
 Until PostgreSQL is available, `src/lib/data/synthetic-repository.ts` serves the deterministic synthetic dataset from server memory.
 
-- It is **temporary** and must be **replaced by the PostgreSQL adapter, or explicitly disabled, before the production Railway deployment**.
-- It is selected with `DATA_SOURCE=synthetic`. In development it is the default; in production (`NODE_ENV=production`) `DATA_SOURCE` must be set explicitly, otherwise data pages fail closed with an error. The server logs a warning whenever the synthetic source is in use.
+- It is **temporary** and is available in development and tests only. It is **never served by a production build**.
 - It is server-only and read-only. No dataset records are included in client JavaScript bundles, and there is no API that exposes the dataset in bulk.
+
+### Data source selection (`DATA_SOURCE`)
+
+| `DATA_SOURCE` | Development / test (`npm run dev`, `npm test`) | Production (`npm start`, Railway) |
+|---|---|---|
+| unset or empty | synthetic | rejected |
+| `synthetic` | synthetic | **rejected** |
+| `postgres` | PostgreSQL adapter (not implemented yet: fails closed) | PostgreSQL adapter (not implemented yet: fails closed) |
+| any other value | rejected | rejected |
+
+- `postgres` is the only value accepted in production. There is deliberately **no override** that allows the synthetic data in production.
+- "Rejected" and "fails closed" mean that every data page shows the Estonian error view and no records. Login, logout and access control keep working. The server log shows the reason as a `DataSourceConfigError`. The browser only sees a generic error with a digest, and the configured value is never echoed in error messages.
+- The PostgreSQL adapter does not exist yet. Selecting `postgres` gives a clear "not implemented" error rather than falling back to another source.
+- At startup the server logs one line naming the selected source type or the configuration error (`src/instrumentation.ts`), for example `[data] Data source: synthetic (TEMPORARY …)`. It never logs connection strings, passwords or other environment values.
+- Consequence: a local production build (`npm run build && npm start`) shows no data until the PostgreSQL adapter exists. Use `npm run dev` to view the synthetic data.
+
+### HTTPS security header
+
+Production builds send `Strict-Transport-Security: max-age=31536000; includeSubDomains`, but only on responses to requests that arrived over HTTPS. In practice that means requests with `X-Forwarded-Proto: https`, which Railway's TLS-terminating edge sets. Plain-HTTP requests (localhost `npm start`) and `npm run dev` never get the header. The behaviour behind Railway's proxy has not been verified yet.
 
 ### Analysis rules
 
@@ -166,6 +185,7 @@ Other commands:
 | `npm test` | Dataset, analysis-rule, formatting and repository tests | No |
 | `npm run typecheck` / `npm run lint` | Static checks | No |
 | `npm run build` | Production build | No |
+| `npm run test:production` | After `npm run build`: production data-source policy, fail-closed pages and HSTS against `next start` (no network or database access) | No |
 | `npm run db:migrate` | Create/apply migrations (development) | Yes |
 | `npm run db:seed` | Load the synthetic dataset | Yes |
 
@@ -179,7 +199,7 @@ Configure local environment variables in `.env.local` (ignored by Git), using `.
   ```
 
 - `DATABASE_URL` — only needed once a database is available.
-- `DATA_SOURCE` — optional in development (defaults to `synthetic`); must be set explicitly for `npm start` / production. See [Temporary synthetic data adapter](#temporary-synthetic-data-adapter).
+- `DATA_SOURCE` — optional in development (defaults to `synthetic`); production accepts only `postgres`. See [Data source selection](#data-source-selection-data_source).
 
 Without `APP_ACCESS_PASSWORD` and `SESSION_SECRET` the login page shows a configuration error and all pages stay locked. Never commit `.env` files.
 

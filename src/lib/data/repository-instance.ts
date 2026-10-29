@@ -1,5 +1,5 @@
 import type { ServiceRepository } from "./repository";
-import { resolveDataSource } from "./source";
+import { DataSourceConfigError, resolveDataSource } from "./source";
 import { createSyntheticRepository } from "./synthetic-repository";
 
 // The repository is cached in module scope, NOT on globalThis. In `next dev`
@@ -11,16 +11,16 @@ import { createSyntheticRepository } from "./synthetic-repository";
 // module is evaluated once per process, so behaviour there is unchanged.
 let repository: ServiceRepository | undefined;
 
-const globalForWarning = globalThis as unknown as { tsiSyntheticWarningLogged?: boolean };
-
 /** Use getServiceRepository() from "@/lib/dal" instead; it checks the session first. */
 export function getRepository(): ServiceRepository {
-  // Throws DataSourceConfigError (fail closed) when the source is not configured.
-  resolveDataSource();
-  // Only the one-time log message is process-wide; the instance itself is not.
-  if (!globalForWarning.tsiSyntheticWarningLogged) {
-    globalForWarning.tsiSyntheticWarningLogged = true;
-    console.warn("[data] Using the TEMPORARY synthetic data source (read-only, not PostgreSQL).");
+  // Resolved on every call and never cached: an invalid configuration (e.g.
+  // DATA_SOURCE=synthetic in production) throws DataSourceConfigError and
+  // fails closed, without falling back to another source.
+  const source = resolveDataSource();
+  if (source === "postgres") {
+    throw new DataSourceConfigError(
+      "DATA_SOURCE=postgres is selected, but the PostgreSQL adapter is not implemented yet.",
+    );
   }
   repository ??= createSyntheticRepository();
   return repository;
