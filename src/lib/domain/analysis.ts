@@ -112,8 +112,10 @@ export function byRegisteredAtDesc(a: { registeredAt: Date }, b: { registeredAt:
  * Comment of the most recent visit. If that visit has no comment, it is
  * reported as missing; older comments are deliberately not substituted.
  */
-export function latestTechnicianComment(visits: TechnicianVisit[]): LatestTechnicianComment {
-  const latest = visits.reduce<TechnicianVisit | null>(
+export function latestTechnicianComment(
+  visits: readonly Pick<TechnicianVisit, "visitedAt" | "originalComment">[],
+): LatestTechnicianComment {
+  const latest = visits.reduce<Pick<TechnicianVisit, "visitedAt" | "originalComment"> | null>(
     (current, visit) => (current === null || visit.visitedAt > current.visitedAt ? visit : current),
     null,
   );

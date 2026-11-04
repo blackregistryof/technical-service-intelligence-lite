@@ -64,29 +64,56 @@ describe("getRepository (the data path of the Seadmed pages)", () => {
     }
   });
 
-  it("fails closed for postgres and for invalid production configuration", () => {
+  it("fails closed for invalid production configuration and unavailable PostgreSQL, never falling back", async () => {
     const saved = { DATA_SOURCE: process.env.DATA_SOURCE, NODE_ENV: process.env.NODE_ENV };
     const env = process.env as Record<string, string | undefined>;
-    const cases: [string | undefined, string | undefined, RegExp][] = [
-      ["postgres", "development", /PostgreSQL adapter is not implemented yet/],
-      ["postgres", "production", /PostgreSQL adapter is not implemented yet/],
-      ["synthetic", "production", /not allowed in production/],
-      [undefined, "production", /not set/],
-      ["unknown", "production", /Unsupported DATA_SOURCE value/],
+    const setEnv = (DATA_SOURCE: string | undefined, NODE_ENV: string) => {
+      if (DATA_SOURCE === undefined) delete env.DATA_SOURCE;
+      else env.DATA_SOURCE = DATA_SOURCE;
+      env.NODE_ENV = NODE_ENV;
+    };
+    const unusedClient = () => {
+      throw new Error("must not be created");
+    };
+    const missingUrl = () => {
+      throw new Error("DATABASE_URL is not set.");
+    };
+    const leakyFailure = () => {
+      throw new Error("bad url postgresql://tsi:s3cret@db.example.invalid:5432/tsi");
+    };
+    const cases: [string | undefined, string, (() => never) | undefined, RegExp][] = [
+      ["synthetic", "production", unusedClient, /not allowed in production/],
+      [undefined, "production", unusedClient, /not set/],
+      ["unknown", "production", unusedClient, /Unsupported DATA_SOURCE value/],
+      ["postgres", "production", undefined, /no PostgreSQL client is available/],
+      ["postgres", "development", undefined, /no PostgreSQL client is available/],
+      ["postgres", "production", missingUrl, /could not be created: DATABASE_URL is not set\./],
+      ["postgres", "production", leakyFailure, /could not be created: bad url postgresql:\/\/\[redacted\]$/],
     ];
     try {
       // The synthetic instance is already cached by the tests above; it must not be returned.
       assert.ok(getRepository());
-      for (const [DATA_SOURCE, NODE_ENV, message] of cases) {
-        env.DATA_SOURCE = DATA_SOURCE;
-        if (DATA_SOURCE === undefined) delete env.DATA_SOURCE;
-        env.NODE_ENV = NODE_ENV;
+      for (const [DATA_SOURCE, NODE_ENV, client, message] of cases) {
+        setEnv(DATA_SOURCE, NODE_ENV);
         assert.throws(
-          () => getRepository(),
-          (error) => error instanceof DataSourceConfigError && message.test(error.message),
+          () => getRepository(client),
+          (error) => error instanceof DataSourceConfigError && message.test(error.message) && !error.message.includes("s3cret"),
           `${DATA_SOURCE} / ${NODE_ENV}`,
         );
       }
+
+      // A working PostgreSQL selection uses the PostgreSQL adapter, not the synthetic data.
+      setEnv("postgres", "production");
+      let created = 0;
+      const emptyDelegate = { findMany: async () => [], findFirst: async () => null, findUnique: async () => null, groupBy: async () => [] };
+      const repository = getRepository(() => {
+        created++;
+        return { atm: emptyDelegate, workOrder: emptyDelegate, codeDictionary: emptyDelegate } as never;
+      });
+      assert.deepEqual(await repository.searchAtms(""), []);
+      assert.deepEqual(await repository.listActiveFaultCalls(), []);
+      assert.equal(created, 1);
+      assert.equal(getRepository(unusedClient), repository, "the PostgreSQL repository is reused");
     } finally {
       for (const [key, value] of Object.entries(saved)) {
         if (value === undefined) delete env[key];

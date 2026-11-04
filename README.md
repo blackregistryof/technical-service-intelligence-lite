@@ -158,12 +158,13 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - Production data-source guard (synthetic data is never served by a production build; `postgres` is the only accepted production value), a startup data-source log line and production-only HSTS (Stage 6B).
 - `TIMESTAMPTZ(3)` timestamp columns and the initial migration in `prisma/migrations`, generated offline and not yet applied (Stage 6C).
 - Opt-in, offline-tested synthetic seeding: `npm run db:seed` only plans; `--apply` writes in one transaction (Stage 6D).
+- PostgreSQL (Prisma) repository adapter selected with `DATA_SOURCE=postgres`, tested offline only (Stage 6E). See [PostgreSQL adapter](#postgresql-adapter).
 
 **Pending:**
 
 - Applying the migrations to Railway PostgreSQL and checking database connectivity (not yet run or tested).
 - Running `npm run db:seed -- --apply` against PostgreSQL, plus the PostgreSQL integration checks listed in [What is tested offline, and what is not](#what-is-tested-offline-and-what-is-not).
-- PostgreSQL (Prisma) implementation of the data repository, replacing the synthetic adapter.
+- PostgreSQL integration testing of the repository adapter (see [PostgreSQL adapter](#postgresql-adapter)).
 - Railway deployment and testing.
 
 ## Data access
@@ -172,10 +173,47 @@ The views read data only through `getServiceRepository()` in `src/lib/dal.ts`, w
 
 ### Temporary synthetic data adapter
 
-Until PostgreSQL is available, `src/lib/data/synthetic-repository.ts` serves the deterministic synthetic dataset from server memory.
+`src/lib/data/synthetic-repository.ts` serves the deterministic synthetic dataset from server memory.
 
 - It is **temporary** and is available in development and tests only. It is **never served by a production build**.
 - It is server-only and read-only. No dataset records are included in client JavaScript bundles, and there is no API that exposes the dataset in bulk.
+
+### PostgreSQL adapter
+
+`src/lib/data/postgres-repository.ts` implements the same `ServiceRepository` contract with Prisma. It is selected with `DATA_SOURCE=postgres` and reads `DATABASE_URL`.
+
+- **Read-only and server-only.** The Prisma client (`src/lib/prisma.ts`) is injected by the server-only entry point `src/lib/data/index.ts`. It is created on the first data request, never on import or during the build, and the startup log does not contact the database.
+- **Work in the database.** Filtering, ordering and counting run in PostgreSQL, and only the rows a page needs are loaded:
+  - active fault calls are filtered by type and status;
+  - ATM counts use grouped counts;
+  - a device history loads one ATM's work orders;
+  - code descriptions are loaded only for the codes on those records.
+- **Same semantics as the synthetic adapter.**
+  - Search is case-insensitive and trimmed, and limited to 50 characters.
+  - Order is newest registration first; visits are oldest first; ATMs follow `atmNumber` order. Equal timestamps are ordered by ID.
+  - Unknown records return `null`.
+  - The 30-day count and the latest-work and latest-comment rules reuse the same domain functions.
+- **Literal search text.** Prisma compiles `contains` and case-insensitive `equals` to `ILIKE` without escaping, so the adapter escapes `\`, `%` and `_`. Searching for `%` therefore matches a literal `%`, and `/seadmed/%` cannot resolve to an arbitrary ATM.
+- **No fallback.**
+  - A missing `DATABASE_URL` fails as a `DataSourceConfigError`.
+  - A failed query fails as a `DataSourceUnavailableError`, with any connection string or `password=` parameter redacted from the message.
+  - Either way the page shows the error view. Synthetic data is never served instead.
+
+Offline tests (`src/lib/data/postgres-repository.test.ts`, run by `npm test`) cover three layers. None contacts a database:
+
+1. **Compiled SQL:** the real Prisma client and query compiler with a recording driver adapter that captures each SQL statement and returns no rows. This pins the filters, ordering, LIKE escaping and read-only statements.
+2. **Parity:** an in-memory fake of the Prisma calls, backed by the synthetic dataset and using PostgreSQL `ILIKE` semantics. The adapter's results are compared deep-equal with the synthetic adapter's for every work order, every ATM and a set of search inputs, including `%`, `_` and `\`.
+3. **Failures:** errors are redacted, and nothing falls back to other data.
+
+**Not yet verified against real PostgreSQL** (integration testing pending):
+
+- that the queries return what the fake returns;
+- `ILIKE` and collation behaviour for non-ASCII text;
+- `groupBy` results;
+- `TIMESTAMPTZ(3)` values at the analysis-period boundaries;
+- connection pooling;
+- error messages from real connection and authentication failures;
+- performance with larger data.
 
 ### Data source selection (`DATA_SOURCE`)
 
@@ -183,14 +221,19 @@ Until PostgreSQL is available, `src/lib/data/synthetic-repository.ts` serves the
 |---|---|---|
 | unset or empty | synthetic | rejected |
 | `synthetic` | synthetic | **rejected** |
-| `postgres` | PostgreSQL adapter (not implemented yet: fails closed) | PostgreSQL adapter (not implemented yet: fails closed) |
+| `postgres` | PostgreSQL adapter (needs `DATABASE_URL`) | PostgreSQL adapter (needs `DATABASE_URL`) |
 | any other value | rejected | rejected |
 
 - `postgres` is the only value accepted in production. There is deliberately **no override** that allows the synthetic data in production.
 - "Rejected" and "fails closed" mean that every data page shows the Estonian error view and no records. Login, logout and access control keep working. The server log shows the reason as a `DataSourceConfigError`. The browser only sees a generic error with a digest, and the configured value is never echoed in error messages.
-- The PostgreSQL adapter does not exist yet. Selecting `postgres` gives a clear "not implemented" error rather than falling back to another source.
-- At startup the server logs one line naming the selected source type or the configuration error (`src/instrumentation.ts`), for example `[data] Data source: synthetic (TEMPORARY …)`. It never logs connection strings, passwords or other environment values.
-- Consequence: a local production build (`npm run build && npm start`) shows no data until the PostgreSQL adapter exists. Use `npm run dev` to view the synthetic data.
+- With `postgres`, a missing `DATABASE_URL` or an unreachable database also fails closed; the synthetic data is never used as a fallback.
+- At startup the server logs one line (`src/instrumentation.ts`) naming:
+  - the selected source type, e.g. `[data] Data source: synthetic (TEMPORARY …)`;
+  - for `postgres`, whether `DATABASE_URL` is set;
+  - or the configuration error.
+
+  It does not contact the database, and it never logs connection strings, passwords or other environment values.
+- Consequence: a local production build (`npm run build && npm start`) shows data only with `DATA_SOURCE=postgres` and a reachable, migrated database. Use `npm run dev` to view the synthetic data.
 
 ### HTTPS security header
 

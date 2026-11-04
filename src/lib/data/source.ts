@@ -1,7 +1,8 @@
 // Data source selection (DATA_SOURCE):
-// - "postgres": the PostgreSQL (Prisma) adapter. It is the only value accepted
-//   in production. The adapter is NOT implemented yet, so selecting it fails
-//   closed in getRepository() instead of serving another source.
+// - "postgres": the PostgreSQL (Prisma) adapter, reading DATABASE_URL. It is
+//   the only value accepted in production. If DATABASE_URL is missing or the
+//   database is unreachable, data pages fail closed; there is no fallback to
+//   another source.
 // - "synthetic": TEMPORARY in-memory synthetic dataset (read-only). Development
 //   and test only; rejected unconditionally in production.
 // - unset or empty: synthetic in development and test; rejected in production.
@@ -47,19 +48,24 @@ export function resolveDataSource(
 
 /**
  * The one-line server startup log for the selected data source (see
- * src/instrumentation.ts). Names only the source type or the configuration
- * problem; never connection strings, passwords or other environment values.
+ * src/instrumentation.ts). Names only the source type, whether DATABASE_URL is
+ * set, or the configuration problem; never connection strings, passwords or
+ * other environment values. It does not contact the database.
  */
 export function dataSourceStartupLog(
-  env: { DATA_SOURCE?: string; NODE_ENV?: string } = process.env,
+  env: { DATA_SOURCE?: string; NODE_ENV?: string; DATABASE_URL?: string } = process.env,
 ): { level: "info" | "warn" | "error"; message: string } {
   try {
     if (resolveDataSource(env) === "postgres") {
-      return {
-        level: "error",
-        message:
-          "[data] Data source: postgres. The PostgreSQL adapter is not implemented yet; data pages will fail closed.",
-      };
+      return env.DATABASE_URL?.trim()
+        ? {
+            level: "info",
+            message: "[data] Data source: postgres (PostgreSQL via Prisma; connection not tested at startup).",
+          }
+        : {
+            level: "error",
+            message: "[data] Data source: postgres, but DATABASE_URL is not set. Data pages will fail closed.",
+          };
     }
     return {
       level: "warn",

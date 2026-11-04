@@ -1,5 +1,5 @@
 // Read-only data access contract used by the UI. Implementations: the
-// temporary synthetic adapter now, a Prisma/PostgreSQL adapter later.
+// temporary synthetic adapter (development and tests) and the PostgreSQL adapter.
 
 import type {
   AtmHistory,

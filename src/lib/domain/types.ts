@@ -1,5 +1,5 @@
 // Domain types used by the UI. Independent of the data source (synthetic
-// dataset now, Prisma/PostgreSQL later).
+// dataset or PostgreSQL).
 
 export type WorkType = "FAULT_CALL" | "MAINTENANCE";
 export type WorkOrderStatus = "OPEN" | "HOLD" | "CLOSED";

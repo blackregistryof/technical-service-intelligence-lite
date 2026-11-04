@@ -76,9 +76,23 @@ describe("configuration errors and startup log", () => {
       message: "[data] Data source: synthetic (TEMPORARY read-only in-memory dataset, not PostgreSQL).",
     });
     assert.equal(dataSourceStartupLog({ NODE_ENV: "development" }).level, "warn");
-    const postgres = dataSourceStartupLog({ DATA_SOURCE: "postgres", NODE_ENV: "production" });
-    assert.equal(postgres.level, "error");
-    assert.match(postgres.message, /^\[data\] Data source: postgres\. .*not implemented yet/);
+    const configured = dataSourceStartupLog({ DATA_SOURCE: "postgres", NODE_ENV: "production", DATABASE_URL: leaked });
+    assert.deepEqual(configured, {
+      level: "info",
+      message: "[data] Data source: postgres (PostgreSQL via Prisma; connection not tested at startup).",
+    });
+    for (const DATABASE_URL of [undefined, "", "   "]) {
+      const missing = dataSourceStartupLog({ DATA_SOURCE: "postgres", NODE_ENV: "production", DATABASE_URL });
+      assert.equal(missing.level, "error", String(DATABASE_URL));
+      assert.equal(missing.message, "[data] Data source: postgres, but DATABASE_URL is not set. Data pages will fail closed.");
+    }
+  });
+
+  it("never includes the DATABASE_URL value", () => {
+    for (const NODE_ENV of ["production", "development"]) {
+      const log = dataSourceStartupLog({ DATA_SOURCE: "postgres", NODE_ENV, DATABASE_URL: leaked });
+      assert.ok(!log.message.includes("s3cret") && !log.message.includes("example.invalid"), NODE_ENV);
+    }
   });
 
   it("reports invalid production configuration as an error", () => {

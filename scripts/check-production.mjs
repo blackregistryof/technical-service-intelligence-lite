@@ -7,11 +7,15 @@
 // - the startup log names the expected source or configuration error;
 // - every data page fails closed (no records, no configuration details);
 // - HSTS is sent only for HTTPS requests (X-Forwarded-Proto: https);
-// - the server log contains no secrets and no outgoing connection attempts.
+// - the server log contains no secrets, and the only outgoing connection
+//   attempts are the blocked ones to the dummy database host.
 //
 // No database is reachable: DATABASE_URL is empty (which also stops Next from
-// loading it from .env.local), the libpq PG* variables are removed, and
-// scripts/no-network.mjs blocks every non-loopback connection and port 5432.
+// loading it from .env.local) or a dummy URL on db.example.invalid, the libpq
+// PG* variables are removed, and scripts/no-network.mjs blocks every
+// non-loopback connection and port 5432 before any socket or DNS lookup. The
+// dummy-URL case therefore exercises the real PostgreSQL adapter's connection
+// failure path without contacting anything.
 
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -29,8 +33,15 @@ if (!existsSync(new URL("../.next/BUILD_ID", import.meta.url))) {
   process.exit(1);
 }
 
+const DUMMY_HOST = "db.example.invalid:5432";
 const CASES = [
-  { value: "postgres", log: /\[data\] Data source: postgres\. The PostgreSQL adapter is not implemented yet/ },
+  { value: "postgres", log: /\[data\] Data source: postgres, but DATABASE_URL is not set\. Data pages will fail closed\./ },
+  {
+    value: "postgres",
+    databaseUrl: LEAK,
+    log: /\[data\] Data source: postgres \(PostgreSQL via Prisma; connection not tested at startup\)\./,
+    blockedHost: DUMMY_HOST,
+  },
   { value: "synthetic", log: /configuration error: DATA_SOURCE=synthetic is not allowed in production/ },
   { value: " synthetic ", log: /configuration error: DATA_SOURCE=synthetic is not allowed in production/ },
   { value: "", log: /configuration error: DATA_SOURCE is not set/ },
@@ -46,14 +57,14 @@ const check = (label, name, ok, extra = "") => {
   console.log(`${ok ? "PASS" : "FAIL"}  [${label}] ${name}${extra ? `  (${extra})` : ""}`);
 };
 
-function startServer(dataSource) {
+function startServer(dataSource, databaseUrl) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (/^PG/.test(key)) delete env[key];
   Object.assign(env, {
     NODE_ENV: "production",
     NEXT_TELEMETRY_DISABLED: "1",
     NODE_OPTIONS: `--import=${GUARD.href}`,
-    DATABASE_URL: "",
+    DATABASE_URL: databaseUrl,
     DATA_SOURCE: dataSource,
     APP_ACCESS_PASSWORD: randomBytes(18).toString("base64url"),
     SESSION_SECRET: randomBytes(48).toString("base64url"),
@@ -103,9 +114,11 @@ async function login(password) {
   return res.headers.getSetCookie().find((c) => c.startsWith("__Host-tsi_session="))?.split(";")[0];
 }
 
-async function runCase({ value, log: expectedLog }) {
-  const label = value === LEAK ? "connection-string value" : JSON.stringify(value);
-  const server = startServer(value);
+async function runCase({ value, databaseUrl = "", log: expectedLog, blockedHost }) {
+  const label =
+    (value === LEAK ? "connection-string value" : JSON.stringify(value)) +
+    (databaseUrl ? " + unreachable DATABASE_URL" : "");
+  const server = startServer(value, databaseUrl);
   try {
     if (!(await waitForServer())) return check(label, "server started", false);
 
@@ -114,7 +127,7 @@ async function runCase({ value, log: expectedLog }) {
     for (const path of DATA_PAGES) {
       const raw = await (await get(path, { cookie })).text();
       check(label, `${path} fails closed without records`, raw.includes("digest") && !RECORDS.test(raw.replaceAll("ATM-0101", "")));
-      check(label, `${path} hides configuration details`, !/DATA_SOURCE|DataSourceConfigError|not implemented/.test(raw));
+      check(label, `${path} hides configuration details`, !/DATA_SOURCE|DATABASE_URL|DataSourceConfigError|DataSourceUnavailableError|not implemented|example\.invalid|not-a-real-secret/.test(raw));
     }
 
     const https = await get("/login", { "x-forwarded-proto": "https" });
@@ -130,7 +143,17 @@ async function runCase({ value, log: expectedLog }) {
   const secrets = [server.env.APP_ACCESS_PASSWORD, server.env.SESSION_SECRET, "not-a-real-secret-4711"];
   check(label, "server log contains no secrets", !secrets.some((secret) => log.includes(secret)));
   check(label, "network guard active", log.includes("[no-network] outgoing connections restricted"));
-  check(label, "no outgoing connection attempts", !log.includes("[no-network] BLOCKED"));
+  const blocked = [...log.matchAll(/\[no-network\] BLOCKED outgoing connection to (\S+)/g)].map((m) => m[1]);
+  if (blockedHost) {
+    check(
+      label,
+      "database connection attempted only to the dummy host, and blocked",
+      blocked.length > 0 && blocked.every((host) => host === blockedHost),
+      blocked.join(", "),
+    );
+  } else {
+    check(label, "no outgoing connection attempts", blocked.length === 0, blocked.join(", "));
+  }
 }
 
 for (const testCase of CASES) await runCase(testCase);
