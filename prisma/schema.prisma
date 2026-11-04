@@ -28,8 +28,8 @@ model Atm {
   atmNumber  String      @unique
   model      String
   workOrders WorkOrder[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime    @updatedAt @db.Timestamptz(3)
 
   @@map("atms")
 }
@@ -42,14 +42,14 @@ model WorkOrder {
   sourceSystem        String
   workType            WorkType
   status              WorkOrderStatus
-  registeredAt        DateTime
+  registeredAt        DateTime          @db.Timestamptz(3)
   // Only fault calls carry a fault code; maintenance orders leave it empty.
   faultCode           String?
   // Preserved verbatim from the source system.
   originalDescription String
   visits              TechnicianVisit[]
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt           DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
 
   @@unique([sourceSystem, externalId])
   @@index([status, registeredAt])
@@ -62,14 +62,14 @@ model TechnicianVisit {
   id              String    @id @default(cuid())
   workOrderId     String
   workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  visitedAt       DateTime
+  visitedAt       DateTime  @db.Timestamptz(3)
   actions         String
   // Preserved verbatim; may be missing in the source system.
   originalComment String?
   resolutionCode  String?
   outcome         String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 
   @@index([workOrderId, visitedAt])
   @@map("technician_visits")
