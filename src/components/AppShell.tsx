@@ -13,6 +13,10 @@ export function AppShell({ current, children }: { current: NavSection; children:
       <main id="sisu" className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         {children}
       </main>
+      {/* A plain paragraph, not a second <footer> landmark: the root layout already has one. */}
+      <p className="mx-auto w-full max-w-[90rem] px-4 pb-4 text-xs text-slate-500 sm:px-6 lg:px-8">
+        TSI Lite V0.1 · Sünteetilised andmed · Built with Claude Code
+      </p>
     </>
   );
 }
