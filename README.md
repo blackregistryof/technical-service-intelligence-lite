@@ -45,21 +45,61 @@ All identifiers, models, codes, descriptions and comments are fictional. No real
 
 - `prisma/synthetic/dataset.ts` — pure data definition and validation; no database, clock or randomness.
 - `prisma/synthetic/dataset.test.ts` — automated dataset tests (`npm test`).
-- `prisma/seed.ts` — idempotent persistence (`npm run db:seed`), see [Seeding the database](#seeding-the-database).
+- `prisma/seeding.ts` — seeding rules (opt-in, plan, conflict check, transactional upserts); creates no database client.
+- `prisma/seeding.test.ts` — offline seeding tests against an in-memory fake (`npm test`).
+- `prisma/seed.ts` — command-line entry point (`npm run db:seed`), see [Seeding the database](#seeding-the-database).
 
 ## Seeding the database
 
 ### What the seed changes
 
 - Synthetic records are identified by IDs starting with `syn-` (and source system `TSI-SYNTH` for work orders). These are reserved for the synthetic dataset; imported data must not use them.
-- The seed **creates or updates only `syn-` records**, matched by ID, so it can be rerun safely without creating duplicates.
+- The seed **creates or updates only `syn-` records**, matched by ID (upsert), so it can be rerun without creating duplicates.
+- A rerun **overwrites** each existing `syn-` record's dataset fields with the dataset values: every field except `id`, `createdAt` and `updatedAt`. Manual edits to synthetic records are therefore reverted. The seed never supplies `createdAt` (set by the database default on insert) or `updatedAt`. `updatedAt` is an `@updatedAt` field, which Prisma Client sets itself on insert and update. It is therefore expected to change on every rerun even when no values differ; this is still to be confirmed against PostgreSQL.
 - The seed **never deletes anything**. If a synthetic record is removed from the dataset in a later version, the seed lists it as obsolete and leaves it in place; remove it manually if required.
 - Before writing, the seed checks whether any ATM number, `TSI-SYNTH` work-order ID or dictionary code it needs already belongs to a non-synthetic record. If so, it **aborts without changes** and lists the conflicts.
-- All writes run in one transaction: either the whole dataset is written or nothing is.
+- All reads and writes run in one interactive transaction, parents before children (codes, ATMs, work orders, technician visits): either the whole dataset is written or nothing is.
 
 ### When it runs
 
-Only when someone runs `npm run db:seed`. It is **not** part of `npm install`/`postinstall` (which only runs `prisma generate`), `npm run build`, `npm start`, or Prisma's own commands (no seed is registered in `prisma.config.ts`). Do **not** add it to Railway build, pre-deploy or start commands.
+Writing requires an explicit opt-in:
+
+| Command | Effect |
+|---|---|
+| `npm run db:seed` | Prints the plan (counts, "delete nothing") and exits. **No database connection.** |
+| `npm run db:seed -- --apply` | Prints the target host/database (no credentials) and writes to `DATABASE_URL`. |
+
+- Unknown arguments are rejected.
+- The seed refuses to run when the `npm_lifecycle_event` variable names an npm script other than `db:seed`, for example when another script calls `tsx prisma/seed.ts` directly. This is **accidental-execution protection, not a security boundary**:
+  - a nested `npm run db:seed -- --apply` inside another script passes, because npm sets the variable to `db:seed` for it;
+  - running `tsx prisma/seed.ts --apply` outside npm (variable absent) passes;
+  - anyone can set the variable themselves;
+  - code that imports `seedDatabase` from `prisma/seeding.ts` bypasses the opt-in entirely.
+- It is **not** part of `npm install`/`postinstall` (which only runs `prisma generate`), `npm run build`, `npm start`, or Prisma's own commands: no seed is registered in `prisma.config.ts`, and the migrations contain no data. A test checks this for the repository: it fails if any `package.json` script other than `db:seed` mentions the seed. Commands configured outside the repository, such as Railway build, pre-deploy or start commands in the dashboard, are **not** checked.
+- Do **not** add it to Railway build, pre-deploy or start commands.
+
+### What is tested offline, and what is not
+
+`npm test` runs `prisma/seeding.test.ts` against an in-memory fake of the four tables. No database client is created and no connection is made. The fake enforces foreign keys and unique keys, rejects any method other than `findMany`, `count` and `upsert`, and simulates a rollback. The tests verify:
+
+- the opt-in;
+- the plan and its dataset checks;
+- that every read and write happens inside one transaction, in parent-to-child order;
+- that a second run creates no duplicates and keeps the counts stable, in the fake (the fake has no `updatedAt` handling);
+- that unrelated records are untouched and nothing is deleted;
+- the abort on natural-key conflicts with zero writes;
+- that a failure mid-seed propagates out of the transaction (the fake then restores its own snapshot; this does not prove that PostgreSQL rolls back);
+- that obsolete synthetic records are reported but kept;
+- that the target description contains no credentials.
+
+**Still to be verified against real PostgreSQL** (PostgreSQL integration testing, not done yet):
+
+- that the Prisma queries behave as the fake assumes (`NOT`/`startsWith`, `OR`, `in`/`notIn` filters, upsert by ID);
+- that the parallel queries (`Promise.all`) inside the interactive transaction work;
+- the real transaction rollback after a failed write, and whether the 60-second timeout is enough;
+- the database constraints, and `TIMESTAMPTZ(3)` round-tripping of the dataset's timestamps;
+- `createdAt` (kept on rerun) and `updatedAt` (expected to change on every rerun);
+- the actual counts after a first and a second run, and the absence of duplicates.
 
 ### `tsx` is a development dependency
 
@@ -69,7 +109,7 @@ The seed is TypeScript and runs through `tsx`, which is listed in `devDependenci
 
 1. In Railway, open the PostgreSQL service and copy its **public** connection URL (`DATABASE_PUBLIC_URL`). The internal URL only works inside Railway's private network.
 2. Put it in your local, Git-ignored `.env.local` as `DATABASE_URL=…`. Never commit it or paste it into chat or tickets.
-3. Apply the schema, then seed. (No migration files exist yet; the initial migration is created in the database stage before this step can run.)
+3. Apply the migrations (`prisma/migrations`), check the plan, then seed:
 
    ```bash
    npm run db:migrate:deploy
@@ -79,8 +119,12 @@ The seed is TypeScript and runs through `tsx`, which is listed in `devDependenci
    npm run db:seed
    ```
 
-   The seed prints the target host and database name (no credentials) before writing — check it is the intended database.
-4. Optionally run `npm run db:seed` a second time and confirm that the reported counts are unchanged (7 ATMs, 38 work orders, 37 technician visits, 12 codes).
+   ```bash
+   npm run db:seed -- --apply
+   ```
+
+   With `--apply`, the seed prints the target host and database name (no credentials) before writing. Check it is the intended database.
+4. Optionally run `npm run db:seed -- --apply` a second time and confirm that the reported counts are unchanged (7 ATMs, 38 work orders, 37 technician visits, 12 codes).
 5. Remove or comment out `DATABASE_URL` in `.env.local` afterwards if you do not want local commands to target Railway.
 
 Alternatively, the Railway CLI (`railway run`) can inject service variables for a single command without storing them in a file. Note that a service's `DATABASE_URL` usually points to the private network address, which is not reachable from a local machine; use the public URL for local seeding.
@@ -112,11 +156,13 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 - **Rikketeated** (active fault calls, search, detail with technician visits) and **Seadmed** (ATM search, work-order history, factual summary) views, served from a **temporary synthetic data adapter** (Stage 4).
 - Basic factual analysis on the device page: fixed reference date, exact 30-day period, linked list of counted fault calls, latest registered work, and a synthetic-data / not-AI label (Stage 5).
 - Production data-source guard (synthetic data is never served by a production build; `postgres` is the only accepted production value), a startup data-source log line and production-only HSTS (Stage 6B).
+- `TIMESTAMPTZ(3)` timestamp columns and the initial migration in `prisma/migrations`, generated offline and not yet applied (Stage 6C).
+- Opt-in, offline-tested synthetic seeding: `npm run db:seed` only plans; `--apply` writes in one transaction (Stage 6D).
 
 **Pending:**
 
-- Railway PostgreSQL setup, database connectivity and migrations (not yet run or tested).
-- Running `npm run db:seed` against PostgreSQL.
+- Applying the migrations to Railway PostgreSQL and checking database connectivity (not yet run or tested).
+- Running `npm run db:seed -- --apply` against PostgreSQL, plus the PostgreSQL integration checks listed in [What is tested offline, and what is not](#what-is-tested-offline-and-what-is-not).
 - PostgreSQL (Prisma) implementation of the data repository, replacing the synthetic adapter.
 - Railway deployment and testing.
 
@@ -187,7 +233,8 @@ Other commands:
 | `npm run build` | Production build | No |
 | `npm run test:production` | After `npm run build`: production data-source policy, fail-closed pages and HSTS against `next start` (no network or database access) | No |
 | `npm run db:migrate` | Create/apply migrations (development) | Yes |
-| `npm run db:seed` | Load the synthetic dataset | Yes |
+| `npm run db:seed` | Print the synthetic seed plan (no connection) | No |
+| `npm run db:seed -- --apply` | Load the synthetic dataset | Yes |
 
 Configure local environment variables in `.env.local` (ignored by Git), using `.env.example` as the template:
 
