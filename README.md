@@ -173,7 +173,7 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 
 - Mobile views show too much information and need further refinement (user feedback).
 - No formal usability testing has been carried out; that is the purpose of V0.2.
-- Not verified on Railway: HSTS behind Railway's proxy, and how the proxy sets `X-Forwarded-For` (see [Authentication: known limitations](#authentication-known-limitations)).
+- Not verified on Railway: how the proxy sets `X-Forwarded-For` (see [Authentication: known limitations](#authentication-known-limitations)).
 - The logout blocklist and login rate limiter are still kept in server memory (single replica only).
 
 ## Deployment and verification status
@@ -209,6 +209,8 @@ Before deployment (Stage 6E), with database access disabled, all of these passed
 
 - unit tests (284), lint, typecheck and the production build;
 - `npm run test:production` (112 checks across 7 production configurations).
+
+On the public application (2026-11-05, after the merge of pull request #2), a request to `/login` over HTTPS returned status 200 with the new footer and the header `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
 
 ### User-reported observations
 
@@ -292,7 +294,7 @@ Offline tests (`src/lib/data/postgres-repository.test.ts`, run by `npm test`) co
 
 ### HTTPS security header
 
-Production builds send `Strict-Transport-Security: max-age=31536000; includeSubDomains`, but only on responses to requests that arrived over HTTPS. In practice that means requests with `X-Forwarded-Proto: https`, which Railway's TLS-terminating edge sets. Plain-HTTP requests (localhost `npm start`) and `npm run dev` never get the header. The behaviour behind Railway's proxy has not been verified yet.
+Production builds send `Strict-Transport-Security: max-age=31536000; includeSubDomains`, but only on responses to requests that arrived over HTTPS. In practice that means requests with `X-Forwarded-Proto: https`, which Railway's TLS-terminating edge sets. Plain-HTTP requests (localhost `npm start`) and `npm run dev` never get the header. Behind Railway's proxy the header was observed on the public `/login` page on 2026-11-05 (historical check; see [Deployment and verification status](#deployment-and-verification-status)).
 
 ### Analysis rules
 
