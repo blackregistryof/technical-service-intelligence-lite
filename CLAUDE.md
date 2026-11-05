@@ -28,14 +28,14 @@ The deployed application must run on Railway and use Railway PostgreSQL.
 - Read database credentials from `DATABASE_URL`.
 - Read the shared application password from `APP_ACCESS_PASSWORD`.
 - Read the session-cookie signing secret from `SESSION_SECRET` (at least 32 characters).
-- Select the data source with `DATA_SOURCE`. The `synthetic` adapter is temporary and must be replaced by the PostgreSQL adapter, or disabled, before the production deployment.
+- Select the data source with `DATA_SOURCE`. Production accepts only `postgres`; the temporary `synthetic` adapter is limited to development and tests.
 - Never hard-code or commit passwords, tokens, or database URLs.
 - Provide `.env.example` containing variable names but no secret values.
 - Ensure `.env`, `.env.local`, and other secret-bearing files are ignored by Git.
 - Do not install or require a local PostgreSQL server.
 - Do not claim the deployment works until it has been verified.
 
-Railway setup is currently pending. Prepare the implementation so it can be deployed when Railway is available.
+V0.1 is deployed on Railway (https://technical-service-intelligence-lite-production.up.railway.app) with the synthetic dataset loaded into Railway PostgreSQL. See README "Deployment and verification status" for which checks are historical, which are user-reported and what is not established.
 
 ## V0.1 functional scope
 

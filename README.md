@@ -10,7 +10,9 @@ The application is a decision-support prototype, not a production maintenance ma
 
 ## Version V0.1 — Claude Code coursework
 
-The first version will provide:
+V0.1 is deployed on Railway: https://technical-service-intelligence-lite-production.up.railway.app (shared-password login). See [Deployment and verification status](#deployment-and-verification-status) for what has and has not been verified.
+
+The first version provides:
 
 - Shared-password access.
 - A list of active (`Open` and `Hold`) ATM fault calls.
@@ -55,7 +57,7 @@ All identifiers, models, codes, descriptions and comments are fictional. No real
 
 - Synthetic records are identified by IDs starting with `syn-` (and source system `TSI-SYNTH` for work orders). These are reserved for the synthetic dataset; imported data must not use them.
 - The seed **creates or updates only `syn-` records**, matched by ID (upsert), so it can be rerun without creating duplicates.
-- A rerun **overwrites** each existing `syn-` record's dataset fields with the dataset values: every field except `id`, `createdAt` and `updatedAt`. Manual edits to synthetic records are therefore reverted. The seed never supplies `createdAt` (set by the database default on insert) or `updatedAt`. `updatedAt` is an `@updatedAt` field, which Prisma Client sets itself on insert and update. It is therefore expected to change on every rerun even when no values differ; this is still to be confirmed against PostgreSQL.
+- A rerun **overwrites** each existing `syn-` record's dataset fields with the dataset values: every field except `id`, `createdAt` and `updatedAt`. Manual edits to synthetic records are therefore reverted. The seed never supplies `createdAt` (set by the database default on insert) or `updatedAt`. `updatedAt` is an `@updatedAt` field, which Prisma Client sets itself on insert and update, so it changes on every rerun even when no values differ. This was observed on Railway PostgreSQL on 2026-11-04: after a rerun, `updatedAt` had changed on every row and `createdAt` on none.
 - The seed **never deletes anything**. If a synthetic record is removed from the dataset in a later version, the seed lists it as obsolete and leaves it in place; remove it manually if required.
 - Before writing, the seed checks whether any ATM number, `TSI-SYNTH` work-order ID or dictionary code it needs already belongs to a non-synthetic record. If so, it **aborts without changes** and lists the conflicts.
 - All reads and writes run in one interactive transaction, parents before children (codes, ATMs, work orders, technician visits): either the whole dataset is written or nothing is.
@@ -92,20 +94,25 @@ Writing requires an explicit opt-in:
 - that obsolete synthetic records are reported but kept;
 - that the target description contains no credentials.
 
-**Still to be verified against real PostgreSQL** (PostgreSQL integration testing, not done yet):
+**Checked against Railway PostgreSQL** (historical result, 2026-11-04; see [Deployment and verification status](#deployment-and-verification-status)):
 
-- that the Prisma queries behave as the fake assumes (`NOT`/`startsWith`, `OR`, `in`/`notIn` filters, upsert by ID);
-- that the parallel queries (`Promise.all`) inside the interactive transaction work;
-- the real transaction rollback after a failed write, and whether the 60-second timeout is enough;
-- the database constraints, and `TIMESTAMPTZ(3)` round-tripping of the dataset's timestamps;
-- `createdAt` (kept on rerun) and `updatedAt` (expected to change on every rerun);
-- the actual counts after a first and a second run, and the absence of duplicates.
+- The seed completed against the migrated database, and again on reruns. This exercised the conflict-check and obsolete-record queries (both found nothing), the upserts by ID, and the parallel queries inside the interactive transaction.
+- After the reruns: 7 ATMs, 38 work orders, 37 technician visits and 12 codes, all synthetic. There were no duplicate natural keys, the record IDs were unchanged, `createdAt` was kept and `updatedAt` changed.
+- The stored records, including the `TIMESTAMPTZ(3)` timestamps, are read back identically by the PostgreSQL repository (see [PostgreSQL adapter](#postgresql-adapter)).
+
+**Not verified against real PostgreSQL:**
+
+- the abort when a natural key belongs to a non-synthetic record (no such records existed);
+- the rollback after a failed write;
+- whether the 60-second transaction timeout leaves enough margin on a slower connection.
 
 ### `tsx` is a development dependency
 
 The seed is TypeScript and runs through `tsx`, which is listed in `devDependencies`. It is therefore meant to be run from a development machine that has run a full `npm install`, not from the deployed Railway service, where development dependencies may be pruned.
 
-### Running it against Railway PostgreSQL (once available)
+### Running it against Railway PostgreSQL
+
+The synthetic dataset has already been loaded into the Railway database (2026-11-04). Rerunning the seed is safe but not needed; it reverts manual edits to synthetic records.
 
 1. In Railway, open the PostgreSQL service and copy its **public** connection URL (`DATABASE_PUBLIC_URL`). The internal URL only works inside Railway's private network.
 2. Put it in your local, Git-ignored `.env.local` as `DATABASE_URL=…`. Never commit it or paste it into chat or tickets.
@@ -143,29 +150,77 @@ V0.2 will support a formative usability study, not an evaluation of diagnostic a
 
 ## Project status
 
-**Current stage:** V0.1 Development Stage 5 — basic factual analysis.
+**Current stage:** V0.1 complete and deployed on Railway, reading the synthetic dataset from Railway PostgreSQL. V0.2 has not been started.
 
 **Completed:**
 
 - Development environment, GitHub repository and project documentation (`CLAUDE.md`).
-- Next.js (App Router), TypeScript and Tailwind CSS application shell in Estonian, with **Rikketeated** and **Seadmed** placeholder pages.
-- Prisma schema for `Atm`, `WorkOrder`, `TechnicianVisit` and `CodeDictionary`, prepared for PostgreSQL.
+- Next.js (App Router), TypeScript and Tailwind CSS application shell in Estonian (Stage 1).
+- Prisma schema for `Atm`, `WorkOrder`, `TechnicianVisit` and `CodeDictionary`.
 - `.env.example` with required variable names; the production build runs without a database connection.
 - Shared-password authentication with a signed, HTTP-only session cookie and **Logi välja** (Stage 2).
-- Deterministic synthetic dataset with automated tests and an idempotent seed script (Stage 3). The seed has **not** yet been run against PostgreSQL.
-- **Rikketeated** (active fault calls, search, detail with technician visits) and **Seadmed** (ATM search, work-order history, factual summary) views, served from a **temporary synthetic data adapter** (Stage 4).
+- Deterministic synthetic dataset with automated tests and an idempotent seed script (Stage 3).
+- **Rikketeated** (active fault calls, search, detail with technician visits) and **Seadmed** (ATM search, work-order history, factual summary) views (Stage 4).
 - Basic factual analysis on the device page: fixed reference date, exact 30-day period, linked list of counted fault calls, latest registered work, and a synthetic-data / not-AI label (Stage 5).
 - Production data-source guard (synthetic data is never served by a production build; `postgres` is the only accepted production value), a startup data-source log line and production-only HSTS (Stage 6B).
-- `TIMESTAMPTZ(3)` timestamp columns and the initial migration in `prisma/migrations`, generated offline and not yet applied (Stage 6C).
-- Opt-in, offline-tested synthetic seeding: `npm run db:seed` only plans; `--apply` writes in one transaction (Stage 6D).
-- PostgreSQL (Prisma) repository adapter selected with `DATA_SOURCE=postgres`, tested offline only (Stage 6E). See [PostgreSQL adapter](#postgresql-adapter).
+- `TIMESTAMPTZ(3)` timestamp columns and the initial migration in `prisma/migrations`, generated offline (Stage 6C), now applied to Railway PostgreSQL.
+- Opt-in synthetic seeding: `npm run db:seed` only plans; `--apply` writes in one transaction (Stage 6D). The dataset is loaded into Railway PostgreSQL.
+- PostgreSQL (Prisma) repository adapter selected with `DATA_SOURCE=postgres` (Stage 6E). See [PostgreSQL adapter](#postgresql-adapter).
+- Railway deployment of the application at https://technical-service-intelligence-lite-production.up.railway.app.
+- Footer "TSI Lite V0.1 · Sünteetilised andmed · Built with Claude Code" on the authenticated pages, added through pull request #1 (`feature/homework-footer`, merged into `main` on 2026-11-04).
 
-**Pending:**
+**Open points (not blocking V0.1):**
 
-- Applying the migrations to Railway PostgreSQL and checking database connectivity (not yet run or tested).
-- Running `npm run db:seed -- --apply` against PostgreSQL, plus the PostgreSQL integration checks listed in [What is tested offline, and what is not](#what-is-tested-offline-and-what-is-not).
-- PostgreSQL integration testing of the repository adapter (see [PostgreSQL adapter](#postgresql-adapter)).
-- Railway deployment and testing.
+- Mobile views show too much information and need further refinement (user feedback).
+- No formal usability testing has been carried out; that is the purpose of V0.2.
+- Not verified on Railway: HSTS behind Railway's proxy, and how the proxy sets `X-Forwarded-For` (see [Authentication: known limitations](#authentication-known-limitations)).
+- The logout blocklist and login rate limiter are still kept in server memory (single replica only).
+
+## Deployment and verification status
+
+**Deployment:** https://technical-service-intelligence-lite-production.up.railway.app
+
+- Railway project with a PostgreSQL service and the application service, set up to deploy from the GitHub `main` branch (project setup; the Railway trigger settings were not inspected here).
+- **Railway commands (user-provided screenshot):** pre-deploy command `npm run db:migrate:deploy`, start command `npm start`.
+- The application runs with `DATA_SOURCE=postgres`.
+- Access requires the shared password; no passwords, connection strings or other secrets are recorded in this repository.
+
+The results below are **historical**: they were reported when the work was done and are not rerun automatically.
+
+### Technical checks (historical)
+
+The database checks ran from a development machine against the Railway PostgreSQL database through its public URL on 2026-11-04, **not** through the deployed application:
+
+- **Migration:** `prisma migrate status` reported the initial migration (`20261104085337_init`) applied and the schema up to date. This confirms that the migration was applied, but not which execution first applied it. The Railway pre-deploy command above is the likely route, but that was not independently established.
+- **Seeding:** `npm run db:seed` printed the plan, then `npm run db:seed -- --apply` stored 7 ATMs, 38 work orders, 37 technician visits and 12 codes.
+- **Repeat runs:** the seed was applied three times in total. Afterwards:
+  - the counts were unchanged and every record was synthetic;
+  - there were no duplicate ATM numbers, work-order keys or codes;
+  - the record IDs were identical before and after the last rerun;
+  - `createdAt` was unchanged, and `updatedAt` had changed on every row.
+- **PostgreSQL repository compared with the synthetic adapter:** results were identical for:
+  - the active fault-call list (9 calls, newest first) and ATM search, across 12 search inputs including literal `%`, `_` and `\` (these matched nothing, so they did not act as wildcards);
+  - all 38 work-order detail records;
+  - all 7 device histories and their factual summaries, including lowercase and space-padded ATM numbers.
+
+  Unknown IDs and wildcard ATM numbers (`%`, `ATM-010_`) returned "not found".
+
+Before deployment (Stage 6E), with database access disabled, all of these passed:
+
+- unit tests (284), lint, typecheck and the production build;
+- `npm run test:production` (112 checks across 7 production configurations).
+
+### User-reported observations
+
+- The public application shows the footer from pull request #1.
+- On an iPhone, filters, navigation, links, login and logout worked.
+- Mobile views contain too much information and need further refinement.
+
+### Not established
+
+- Formal usability testing has not been carried out.
+- No business benefit (for example time savings or better decisions) has been measured or proven.
+- No load, performance or security testing of the deployed application has been done.
 
 ## Data access
 
@@ -205,13 +260,13 @@ Offline tests (`src/lib/data/postgres-repository.test.ts`, run by `npm test`) co
 2. **Parity:** an in-memory fake of the Prisma calls, backed by the synthetic dataset and using PostgreSQL `ILIKE` semantics. The adapter's results are compared deep-equal with the synthetic adapter's for every work order, every ATM and a set of search inputs, including `%`, `_` and `\`.
 3. **Failures:** errors are redacted, and nothing falls back to other data.
 
-**Not yet verified against real PostgreSQL** (integration testing pending):
+**Checked against Railway PostgreSQL** (historical result, 2026-11-04): with the synthetic dataset loaded, every repository method returned results identical to the synthetic adapter. This included the grouped ATM counts, the 30-day summaries for all 7 ATMs, and literal `%`, `_` and `\` searches. See [Deployment and verification status](#deployment-and-verification-status).
 
-- that the queries return what the fake returns;
-- `ILIKE` and collation behaviour for non-ASCII text;
-- `groupBy` results;
-- `TIMESTAMPTZ(3)` values at the analysis-period boundaries;
-- connection pooling;
+**Not verified against real PostgreSQL:**
+
+- `ILIKE` and collation behaviour for non-ASCII text (the synthetic identifiers are ASCII);
+- analysis-period boundary cases beyond those in the synthetic dataset;
+- connection pooling under load;
 - error messages from real connection and authentication failures;
 - performance with larger data.
 
@@ -288,7 +343,7 @@ Configure local environment variables in `.env.local` (ignored by Git), using `.
   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
   ```
 
-- `DATABASE_URL` — only needed once a database is available.
+- `DATABASE_URL` — needed for `DATA_SOURCE=postgres`, migrations and `npm run db:seed -- --apply`; not needed for the synthetic data in `npm run dev`. If it points at Railway, local database commands change the deployed data.
 - `DATA_SOURCE` — optional in development (defaults to `synthetic`); production accepts only `postgres`. See [Data source selection](#data-source-selection-data_source).
 
 Without `APP_ACCESS_PASSWORD` and `SESSION_SECRET` the login page shows a configuration error and all pages stay locked. Never commit `.env` files.
@@ -299,11 +354,13 @@ https://github.com/blackregistryof/technical-service-intelligence-lite
 
 ## Important limitations
 
-- Educational prototype using synthetic data only.
+- Educational prototype using **synthetic data only**; no real customer, employee or company data.
+- **Read-only records:** work orders and technician visits cannot be created, edited or closed in the application.
+- **Shared-password access:** one password for everyone, no individual user accounts (see below).
+- Mobile views show too much information and need further refinement (user feedback).
+- No formal usability testing and no proven business benefit.
 - No live Dynamics AX integration.
 - No live AI diagnosis or automatic dispatching.
-- No modification of operational work orders.
-- Application functionality remains under development.
 
 ## Authentication: known limitations
 
@@ -311,12 +368,12 @@ Access uses one shared password (`APP_ACCESS_PASSWORD`) and a stateless session 
 
 ### In-memory logout blocklist and login rate limiter
 
-Without a database, both are kept in the memory of the running Node.js process (`src/lib/auth/session.ts`, `src/lib/auth/rate-limit.ts`):
+Both are kept in the memory of the running Node.js process (`src/lib/auth/session.ts`, `src/lib/auth/rate-limit.ts`), also in the deployed application:
 
 - **Lost on restart or redeploy.** After a restart, a cookie that was logged out but copied beforehand becomes valid again until its 8-hour expiry, and failed-attempt counters reset to zero.
 - **Not shared between instances.** If the Railway service is scaled to more than one replica, a logout on one instance is unknown to the others, and the attempt limit applies per instance (an attacker gets 5 attempts per window *per replica*).
 - **Railway guidance until this is replaced:** run a **single replica**; rotate `SESSION_SECRET` to force-invalidate all sessions if a cookie may have leaked.
-- **Planned fix:** once PostgreSQL is available, move the session blocklist (or server-side session records) and failed-attempt counters into the database.
+- **Possible fix (not part of V0.1):** move the session blocklist (or server-side session records) and failed-attempt counters into PostgreSQL, which is now available.
 
 The logout action always deletes the cookie in the browser; the limitations above concern only a cookie that was copied before logout.
 
