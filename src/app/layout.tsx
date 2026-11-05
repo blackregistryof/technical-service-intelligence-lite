@@ -22,9 +22,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </a>
         {children}
         <footer className="border-t border-slate-200 bg-white">
-          <p className="mx-auto max-w-[90rem] px-4 py-4 text-xs text-slate-500 sm:px-6 lg:px-8">
-            Õppeotstarbeline prototüüp. Kõik andmed on sünteetilised.
-          </p>
+          <div className="mx-auto max-w-[90rem] space-y-1 px-4 py-4 text-xs text-slate-500 sm:px-6 lg:px-8">
+            <p>Õppeotstarbeline prototüüp. Kõik andmed on sünteetilised.</p>
+            <p>© 2026 TSI Lite V0.1 - Built with Claude Code</p>
+          </div>
         </footer>
       </body>
     </html>
